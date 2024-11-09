@@ -27,7 +27,7 @@ function prooftext_changed() {
  */
 function check_prooftext() {
     ajax_json({
-        url: "http://localhost:17180/check",
+        url: "check",
         method: "POST",
         data: { proof: $("#prooftext").val() },
         success: function(resp) {
