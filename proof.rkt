@@ -994,10 +994,14 @@
           (bad 2 b "q ⇒ p" `((p ,p) (q ,q)) 'res #:expect (prop:implies q p)))]
        [_ (badr "p ⇔ q")])]
     [(j:ForallElim (app getp p) vm)
+     (define vmlen (length vm))
      (define-values (vs s body)
        (match p
          [(prop:forall vs s body)
-          (values vs s body)]
+          (cond [(< vmlen (length vs))
+                 (define-values (vs1 vs2) (split-at vs vmlen))
+                 (values vs1 s (prop:forall vs2 s body))]
+                [else (values vs s body)])]
          [_ (bad 1 p "∀ x... ∈ S, P(x...)")]))
      (unless (equal? vs (map car vm))
        (reject (err:vm-vars vs (map car vm))))
