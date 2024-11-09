@@ -28,12 +28,16 @@
   (div ([class "main_area"])
        (h1 "Proof Checker")
 
-       (p "The proof checker knows Axioms 1–8 from Homework 6. "
-          "You can also declare your own axioms for experimentation. "
-          "See the examples below.")
+       (p ([class "warning"])
+          "Make sure to save your work often to an external editor. "
+          "Reloading this page may clear the proof text.")
 
        (div ([id "proof_area"])
             (h2 "Proof")
+
+            (p "The proof checker knows Axioms 1–8 from Homework 6. "
+               "You can also declare your own axioms for experimentation. "
+               "See the examples below.")
 
             (div () (label ([for "prooftext"]) "Proof"))
             (div ()
@@ -66,7 +70,7 @@
 
             (div (em "Logic and Arithmetic: ")
                  (pre "¬ not ∧ and ∨ or ⇒ implies ⇔ iff ∀ forall ∃ exists "
-                      "∈ in ℕ NN"
+                      "∈ in ℕ NN "
                       "+ * ="))
             (div (em "Justifications: ")
                  (div (pre "∧Intro ∧ElimL ∧ElimR AndIntro AndElimL AndElimR"))
@@ -82,8 +86,9 @@
             (p "Literal objects (aka constants) are written as identifiers "
                "between single quotes: for example, " (tt "'Mouse'") ".")
 
-            (p "The proof checker does not check membership of sets,"
-               " such as for ∀Elim and ∃Intro.")
+            (p "The proof checker does not check algebra. "
+               "The proof checker does not check set membership, "
+               "such as for ∀Elim and ∃Intro rules.")
 
             (h3 "Example: Implication")
 

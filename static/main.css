@@ -19,6 +19,9 @@ p {
     max-width: 75ex;
 }
 
+.warning {
+    color: darkred;
+}
 /* ---------------------------------------- */
 
 .form_inputs {
