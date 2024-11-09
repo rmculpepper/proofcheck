@@ -32,6 +32,17 @@
       (response/jsexpr result))]
    ))
 
+(define axioms6 (string->proof "
+Axiom 1: Small('Mouse')
+Axiom 2: Brave('Lion')
+Axiom 3: ∀ a,b ∈ A, Fears(a,b) ⇒ ¬Fears(b,a)
+Axiom 4: ∀ a,b ∈ A, Small(a) ⇒ Brave(b) ⇒ Fears(a,b)
+Axiom 5: ∀ n ∈ NN, Even(n) ⇔ (∃ k ∈ NN, n = 2*k)
+Axiom 6: ∀ n ∈ NN, Odd(n) ⇔ (∃ k ∈ NN, n = 2*k + 1)
+Axiom 7: ∀ n ∈ NN, Even(n) ∨ Odd(n)
+Axiom 8: ∀ d,n ∈ NN, Divides(d,n) ⇔ (∃ k ∈ NN, n = k*d)
+"))
+
 ;; handle-check : JSExpr -> JSExpr
 (define (handle-check arg)
   (define proof-text (hash-ref arg 'proof #f))
@@ -46,7 +57,7 @@
                        (lambda (e)
                          (escape (hash 'v 1 'format "text" 'error (exn-message e))))])
         (define pf (string->proof proof-text))
-        (check-proof pf)
+        (check-proof (append axioms6 pf))
         (hash 'v 1 'format "text" 'pass "OK")))))
 
 ;; ============================================================
