@@ -321,6 +321,8 @@
      [(BY EXISTSINTRO ON PRef WITH VarMap) (j:ExistsIntro $4 $6)]
      [(BY ALGEBRA) (j:algebra null)]
      [(BY ALGEBRA ON PRef+) (j:algebra $4)]
+     [(BY MODUSTOLLENS OnClause) (apply-on "ModusTollens" 2 $3 j:ModusTollens)]
+     [(BY CONTRADICTION OnClause) (apply-on "Contradiction" 1 $3 j:Contradiction)]
      [(BY PRef SEMICOLON MaybeVarMap MaybeDirection ON PRef+)
       (j:elim $2 $4 $5 $7)]
      [(BY BRef)
@@ -470,6 +472,8 @@
 (struct j:elim (p vm dir qs) #:prefab)
 (struct j:intro (b) #:prefab)
 (struct j:algebra (ps) #:prefab)
+(struct j:ModusTollens (pq nq) #:prefab)
+(struct j:Contradiction (b) #:prefab)
 
 (struct ref:line (ln) #:prefab)
 (struct ref:axiom (n) #:prefab)
@@ -909,6 +913,8 @@
     [(j:elim p vm dir qs) "Relaxed Elimination"]
     [(j:intro b) "Relaxed Introduction"]
     [(j:algebra _) "Algebra"]
+    [(j:ModusTollens _ _) "Modus Tollens"]
+    [(j:Contradiction _) "Contradiction"]
     [_ #f]))
 
 (define (check-derive at prop just lenv)
@@ -1002,7 +1008,7 @@
        (match pq
          [(prop:implies pp qq)
           (values pp qq)]
-         [_ (bad 1 pq "(p ⇒ q)")]))
+         [_ (bad 1 pq "p ⇒ q")]))
      (unless (prop=? pp p)
        (bad 2 p "p" `((p ,pp) (q ,qq)) 'prev #:expect pp))
      (unless (prop=? prop qq)
@@ -1215,6 +1221,34 @@
                #:when (prop-same-logic? prop propa)
                (void)]
               [_ (reject (err:bad-algebra prop))])])]
+    [(j:ModusTollens (app getp pq) (app getp nq))
+     (define-values (pp qq)
+       (match pq
+         [(prop:implies pp qq)
+          (values pp qq)]
+         [_ (bad 1 pq "p ⇒ q")]))
+     (unless (prop=? nq (prop:not qq))
+       (bad 2 nq "¬q" `((p ,pp) (q ,qq)) 'prev #:expect (prop:not qq)))
+     (unless (prop=? prop (prop:not pp))
+       (badr "¬p" `((p ,pp) (q ,qq)) 'args #:exact (prop:not pp)))]
+    [(j:Contradiction (and b-ref (app getb b)))
+     (define-values (intros assumes rest) (split-block b))
+     (unless (null? intros)
+       (reject (err:block-unwanted-intro b-ref)))
+     (define pa
+       (match assumes
+         [(list (assume pa)) pa]
+         [_ (reject (err:block-need-one-assume b-ref (length assumes)))]))
+     (define plast
+       (match (and (pair? rest) (last rest))
+         [(derive p _) p]
+         [_ (reject (err:block-need-derive b-ref))]))
+     (unless (prop-contradiction? plast)
+       (reject (err:incorrect-prop
+                "The block's final proposition" plast "q ∧ ¬q" null #f
+                `["That is, the block must end in a contradiction."] #f)))
+     (unless (prop=? prop (prop:not pa))
+       (badr "¬p" `((p ,pa)) 'arg #:expect (prop:not pa)))]
     [_ (error 'check-derive "internal error: bad justification: ~e" just)]))
 
 (define (lineno-next n)
@@ -1256,6 +1290,13 @@
       [[(? prop:pred?) (? prop:pred?)] #t]
       [[(? prop:in?) (? prop:in?)] #t]
       [[_ _] #f])))
+
+(define (prop-contradiction? p)
+  (match p
+    [(prop:and p q)
+     (or (prop=? p (prop:not q))
+         (prop=? q (prop:not p)))]
+    [_ #f]))
 
 ;; discard Want lines, split into Intro{0,1}, Assume*, (Block/Derive)*
 (define (split-block b)
