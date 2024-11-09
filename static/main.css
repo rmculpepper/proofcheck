@@ -1,0 +1,44 @@
+body {
+    max-width: 120ex;
+    margin: auto;
+    background-color: gray;
+}
+
+h1, h2, h3 {
+  font-family: sans-serif;
+}
+
+.main_area {
+    background-color: white;
+    padding: 4ex;
+    margin: 1ex;
+    height: 100%;
+}
+
+p {
+    max-width: 75ex;
+}
+
+/* ---------------------------------------- */
+
+.form_inputs {
+    display: table;
+}
+.form_inputs div {
+    display: table-row;
+}
+.form_inputs div label {
+    display: table-cell;
+    padding: 0.5ex;
+    margin: 1ex 0pt;
+}
+.form_inputs div input {
+    display: table-cell;
+    padding: 0.5ex;
+    margin: 1ex 0pt;
+}
+
+fieldset {
+    padding: 1ex;
+    margin: 0ex 1ex 0ex 1ex;
+}
