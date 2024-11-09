@@ -338,7 +338,7 @@
       (prop:iff $1 $3)]
      [(FORALL Variable+ IN Set COMMA Prop)
       (prop:forall $2 $4 $6)]
-     [(EXISTS Variable IN Set COMMA Prop)
+     [(EXISTS Variable+ IN Set COMMA Prop)
       (prop:exists $2 $4 $6)]
      [(LP Prop RP) $2]
 
@@ -394,7 +394,7 @@
 (struct prop:implies (p q) #:prefab)
 (struct prop:iff (p q) #:prefab)
 (struct prop:forall (vs s p) #:prefab)
-(struct prop:exists (v s p) #:prefab)
+(struct prop:exists (vs s p) #:prefab)
 (struct prop:atomic (a) #:prefab)
 
 (struct prop:eq (a b) #:prefab)
@@ -440,7 +440,7 @@
       [(prop:implies p q) (format "(~a ⇒ ~a)" (loop p) (loop q))]
       [(prop:iff p q) (format "(~a ⇔ ~a)" (loop p) (loop q))]
       [(prop:forall vs s p) (format "(∀ ~a ∈ ~a, ~a)" (vars->string vs #t) s (loop p))]
-      [(prop:exists v s p) (format "(∃ ~a ∈ ~a, ~a)" v s (loop p))]
+      [(prop:exists vs s p) (format "(∃ ~a ∈ ~a, ~a)" (vars->string vs #t) s (loop p))]
       [(prop:atomic a) (format "~a" a)]
       [(prop:eq a b) (format "(~a = ~a)" (expr->string a) (expr->string b))]
       [(prop:pred pred args)
@@ -477,28 +477,27 @@
       [(prop:implies p q) (prop:implies (loop p) (loop q))]
       [(prop:iff p q) (prop:iff (loop p) (loop q))]
       [(prop:forall vs s body)
-       (define vs* (for/list ([v (in-list vs)])
-                     (if (memq v vmfv) (fresh v) v)))
-       (cond [(equal? vs vs*)
-              (prop:forall vs s (loop body))]
-             [else
-              (define vm*
-                (for/list ([v vs] [v* vs*] #:when (not (eq? v v*)))
-                  (cons v (expr:var v*))))
-              (define body* (prop-subst body vm* null))
-              (prop:forall vs* s (loop body*))])]
-      [(prop:exists v s body)
-       (cond [(memq v vmfv)
-              (define v* (fresh v))
-              (define body* (prop-subst body (list (cons v (expr:var v*))) null))
-              (prop:exists v* s (loop body*))]
-             [else (prop:exists v s (loop body))])]
+       (binder-subst prop:forall vs s body vm vmfv)]
+      [(prop:exists vs s body)
+       (binder-subst prop:exists vs s body vm vmfv)]
       [(prop:atomic a) p]
       [(prop:eq a b) (prop:eq (expr-subst a vm vmfv) (expr-subst b vm vmfv))]
-      [(prop:pred pred args) (prop:pred pred (for/list ([arg (in-list args)])
-                                               (expr-subst arg vm vmfv)))]
+      [(prop:pred pred args)
+       (prop:pred pred (for/list ([arg (in-list args)]) (expr-subst arg vm vmfv)))]
       [(prop:in e s) (prop:in (expr-subst e vm vmfv) s)]
       [_ (error 'prop-subst "internal error: bad prop: ~e" p)])))
+
+(define (binder-subst constructor vs s body vm0 vmfv)
+  (define vm (filter (lambda (vme) (not (memq (car vme) vs))) vm0))
+  (define vs* (map (lambda (v) (if (memq v vmfv) (fresh v) v)) vs))
+  (cond [(equal? vs vs*)
+         (constructor vs s (prop-subst body vm))]
+        [else
+         (define vm*
+           (for/list ([v (in-list vs)] [v* (in-list vs*)] #:when (not (eq? v v*)))
+             (cons v (expr:var v*))))
+         (define body* (prop-subst body vm* null))
+         (constructor vs* s (prop-subst body* vm))]))
 
 (define (expr-subst e vm vmfv)
   (let loop ([e e])
@@ -521,7 +520,7 @@
       [(prop:implies p q) (append (loop p) (loop q))]
       [(prop:iff p q) (append (loop p) (loop q))]
       [(prop:forall vs s body) (remove* vs (loop body))]
-      [(prop:exists v s body) (remove* (list v) (loop body))]
+      [(prop:exists vs s body) (remove* vs (loop body))]
       [(prop:atomic a) null]
       [(prop:eq a b) (append (expr-fvs a env) (expr-fvs b env))]
       [(prop:pred pred args) (exprs-fvs args env)]
@@ -1038,8 +1037,8 @@
     [(j:ExistsElim (app getp p) (and b-ref (app getb b)))
      (define-values (pv ps pbody)
        (match p
-         [(prop:exists v s body)
-          (values v s body)]
+         [(prop:exists (cons v vs) s body)
+          (values v s (if (pair? vs) (prop:exists vs s body) body))]
          [_ (bad 1 p "∃ x ∈ S, P(x)")]))
      (define-values (hintros hassumes hrest) (split-block b))
      (define hv
@@ -1070,8 +1069,8 @@
     [(j:ExistsIntro (app getp p) vm)
      (define-values (rv rs rbody)
        (match prop
-         [(prop:exists v s body)
-          (values v s body)]
+         [(prop:exists (cons v vs) s body)
+          (values v s (if (pair? vs) (prop:exists vs s body) body))]
          [_ (badr "∃ x ∈ S, P(x)")]))
      (when (memq rv (in-scope))
        (reject `(v "Variable chosen for existential quantifier is already in scope."
