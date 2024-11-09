@@ -938,7 +938,7 @@
         #:when (prop=? pp p)
         (void)]
        [_ (badr "p ∨ q" `((p ,p)) 'arg)])]
-    [(j:OrIntroL (app getp q))
+    [(j:OrIntroR (app getp q))
      (match prop
        [(prop:or pp qq)
         #:when (prop=? qq q)
