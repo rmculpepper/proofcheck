@@ -72,7 +72,7 @@
                  (div (pre "⇔ElimF ⇔ElimB ⇔Intro IffElimF IffElimB IffIntro"))
                  (div (pre "∀Elim ∀Intro ForAllElim ForAllIntro"))
                  (div (pre "∃Elim ∃Intro ExistsElim ExistsIntro"))
-                 (div (pre "↦ :->")))
+                 (div (pre "↦ :-> ⇒ forward fwd ⇐ backward bwd")))
 
             (p "The proof checker does not check membership of sets,"
                " such as for ∀Elim and ∃Intro.")
