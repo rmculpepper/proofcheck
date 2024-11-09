@@ -192,7 +192,7 @@
    ["backward" 'BACKWARD]
    ["bwd" 'BACKWARD]
 
-   ["|->" 'MAPSTO]
+   [":->" 'MAPSTO]
    ["in" 'IN]
 
    [$N+ (token-INTEGER (string->number lexeme))]
