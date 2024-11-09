@@ -28,6 +28,10 @@
   (div ([class "main_area"])
        (h1 "Proof Checker")
 
+       (p "The proof checker knows Axioms 1–8 from Homework 6. "
+          "You can also declare your own axioms for experimentation. "
+          "See the examples below.")
+
        (div ([id "proof_area"])
             (h2 "Proof")
 
@@ -72,13 +76,14 @@
                  (div (pre "⇔ElimF ⇔ElimB ⇔Intro IffElimF IffElimB IffIntro"))
                  (div (pre "∀Elim ∀Intro ForAllElim ForAllIntro"))
                  (div (pre "∃Elim ∃Intro ExistsElim ExistsIntro"))
+                 (div (pre "ModusTollens Contradiction Algebra"))
                  (div (pre "↦ :-> ⇒ forward fwd ⇐ backward bwd")))
+
+            (p "Literal objects (aka constants) are written as identifiers "
+               "between single quotes: for example, " (tt "'Mouse'") ".")
 
             (p "The proof checker does not check membership of sets,"
                " such as for ∀Elim and ∃Intro.")
-            (p "The proof checker does not yet support"
-               " the 'by algebra' justification"
-               " and the indirect proof rules.")
 
             (h3 "Example: Implication")
 
@@ -135,6 +140,48 @@ Axiom 3: forall a,b in A, (Small(a) and Brave(b)) implies Fears(a,b)
 3 Derive Fears('Mouse', 'Lion')
   by ImpliesElim on #2, #1
 ")
+
+            (h3 "Example: Existentials, Algebra")
+
+            (pre "
+Axiom 1: forall n in NN, Even(n) iff (exists k in NN, n = 2*k)
+Axiom 2: forall n in NN, Odd(n) iff (exists k in NN, n = 2*k+1)
+
+1 Block
+  1.1 Intro n in NN
+  1.2 Assume Odd(n)
+  1.3 Want Even(n+1)
+  1.4 Derive exists k in NN, n = 2*k+1 
+      by Axiom 2; with n :-> n; forward; on #1.2
+  1.5 Block
+    1.5.1 Intro m in NN
+    1.5.2 Assume n = 2*m+1
+    1.5.3 Derive n+1 = 2*(m+1) by Algebra on #1.5.2
+    1.5.4 Derive exists k in NN, n+1 = 2*k
+          by ExistsIntro on #1.5.3 with k :-> m+1
+    1.5.5 Derive Even(n+1)
+          by Axiom 1; with n :-> n+1; backward; on #1.5.4
+  1.6 Derive Even(n+1)
+      by ExistsElim on #1.4, #1.5
+2 Derive forall n in NN, Odd(n) implies Even(n+1)
+  by #1
+")
+
+            (h3 "Example: Contradiction")
+
+            (pre "
+1 Block
+  1.1 Assume not A
+  1.2 Want not (A and B)
+  1.3 Block
+    1.3.1 Assume A and B
+    1.3.2 Want A and not A
+    1.3.3 Derive A by AndElimL on #1.3.1
+    1.3.4 Derive A and not A by AndIntro on #1.3.3, #1.1
+  1.4 Derive not (A and B) by Contradiction on #1.3
+2 Derive not A implies not (A and B) by ImpliesIntro on #1
+")
+
             #|/div:docs|#))
 
   (script "initialize();")))
