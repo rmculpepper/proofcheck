@@ -399,7 +399,9 @@
      [(Expr TIMES Expr)
       (expr:times $1 $3)]
      [(IDENTIFIER LP Expr+ RP)
-      (expr:apply $1 $3)]]
+      (expr:apply $1 $3)]
+     [(LP Expr RP)
+      $2]]
 
     [Set
      [(IDENTIFIER) $1]]
