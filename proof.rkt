@@ -834,9 +834,13 @@
 
 ;; LEnv = Hash[LineNo => Statement]
 
-;; check-proof : Lines -> Void
+;; check-proof : Lines -> #f or Prop
+;; Returns prop for complete proof (ends in Derive), #f otherwise.
 (define (check-proof lines)
-  (check-block lines (hash)))
+  (check-block lines (hash))
+  (match (and (pair? lines) (last lines))
+    [(line ln (derive p _)) p]
+    [_ #f]))
 
 (define (check-block lines lenv)
   (check-lines lines lenv '(intro assume)))
