@@ -79,6 +79,61 @@
                " the 'by algebra' justification"
                " and the indirect proof rules.")
 
+            (h3 "Example: Implication")
+
+            (pre "
+Axiom 1: Tue implies CS220
+Axiom 2: Thu implies CS220
+Axiom 3: CS220 implies Happy
+
+1 Block
+  1.1 Assume Tue
+  1.2 Want Happy
+  1.3 Derive CS220 by ImpliesElim on Axiom 1, #1.1
+  1.4 Derive Happy by ImpliesElim on Axiom 3, #1.3
+2 Derive Tue implies Happy by ImpliesIntro on #1
+")
+
+            (h3 "Example: Disjunction")
+
+            (pre "
+Axiom 1: sun implies (bike and garden)
+Axiom 2: rain implies clean
+
+1 Block
+  1.1 Assume sun or rain
+  1.2 Want garden or clean
+  1.4 Block
+    1.4.1 Assume sun
+    1.4.2 Want garden or clean
+    1.4.3 Derive bike and garden by ImpliesElim on Axiom 1, #1.4.1
+    1.4.4 Derive garden by AndElimR on #1.4.3
+    1.4.5 Derive garden or clean by OrIntroL on #1.4.4
+  1.5 Derive sun implies (garden or clean) by ImpliesIntro on #1.4
+  1.6 Block
+    1.6.1 Assume rain
+    1.6.2 Want garden or clean
+    1.6.3 Derive clean by ImpliesElim on Axiom 2, #1.6.1
+    1.6.4 Derive garden or clean by OrIntroR on #1.6.3
+  1.7 Derive rain implies (garden or clean) by ImpliesIntro on #1.6
+  1.8 Derive garden or clean by OrElim on #1.1, #1.5, #1.
+2 Derive (sun or rain) implies (garden or clean) by ImpliesIntro on #1
+")
+
+            (h3 "Example: Universal")
+
+            (pre "
+Axiom 1: Small('Mouse')
+Axiom 2: Brave('Lion')
+Axiom 3: forall a,b in A, (Small(a) and Brave(b)) implies Fears(a,b)
+
+1 Derive Small('Mouse') and Brave('Lion')
+  by AndIntro on Axiom 1, Axiom 2
+2 Derive (Small('Mouse') and Brave('Lion')) implies Fears('Mouse', 'Lion')
+  by ForAllElim on Axiom 3 with a,b :-> 'Mouse', 'Lion'
+3 Derive Fears('Mouse', 'Lion')
+  by ImpliesElim on #2, #1
+")
             #|/div:docs|#))
 
   (script "initialize();")))
