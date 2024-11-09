@@ -37,6 +37,7 @@
                             [rows "20"]
                             [cols "80"]
                             [maxlength "100000"]
+                            [spellcheck "false"]
                             [placeholder "Enter your proof here."])))
             (div ()
                  (button ([id "checkproof"] [type "button"])
