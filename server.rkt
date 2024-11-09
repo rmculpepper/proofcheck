@@ -40,9 +40,12 @@
                     (lambda (rt)
                       (define text (rich-text->string rt))
                       (escape (hash 'v 1 'format "text" 'error text)))))
-      (define pf (string->proof proof-text))
-      (check-proof pf)
-      (hash 'v 1 'format "text" 'pass "OK"))))
+      (with-handlers ([exn:fail?
+                       (lambda (e)
+                         (escape (hash 'v 1 'format "text" 'error (exn-message e))))])
+        (define pf (string->proof proof-text))
+        (check-proof pf)
+        (hash 'v 1 'format "text" 'pass "OK")))))
 
 ;; ============================================================
 
