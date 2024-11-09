@@ -57,8 +57,15 @@ Axiom 8: ∀ d,n ∈ NN, Divides(d,n) ⇔ (∃ k ∈ NN, n = k*d)
                        (lambda (e)
                          (escape (hash 'v 1 'format "text" 'error (exn-message e))))])
         (define pf (string->proof proof-text))
-        (check-proof (append axioms6 pf))
-        (hash 'v 1 'format "text" 'pass "OK")))))
+        (define dprop (check-proof (append axioms6 pf)))
+        (define msg
+          (cond [dprop
+                 `(v "OK."
+                     (h "Proven: " ,(rich 'prop dprop)))]
+                [else
+                 `(p "OK. No errors found, but the proof is incomplete, because"
+                     "the main list does not end with a Derive statement.")]))
+        (hash 'v 1 'format "text" 'pass (rich-text->string msg))))))
 
 ;; ============================================================
 
