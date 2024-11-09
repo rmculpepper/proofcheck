@@ -11,11 +11,13 @@
 (provide (all-defined-out))
 
 (define-runtime-path static-dir "static")
+(define headers (list (header #"Access-Control-Allow-Origin" #"*")))
 
 (define (ok-response content-type data)
   (response/output
    #:code 200
    #:mime-type content-type
+   #:headers headers
    (lambda (out)
      (cond [(string? data) (write-string data out)]
            [(procedure? data) (data out)]))))
@@ -52,6 +54,7 @@
 (define (start [log? #f])
   (serve/servlet dispatch
                  #:port 17180
+                 #:listen-ip #f ;; all interfaces
                  #:servlet-regexp #rx""
                  #:command-line? #t
                  ;; #:launch-browser? #f
