@@ -67,6 +67,9 @@
    FORALLINTRO
    EXISTSELIM
    EXISTSINTRO
+   ALGEBRA
+   MODUSTOLLENS
+   CONTRADICTION
 
    ORINTRO-is-not-a-rule-name
    IFFELIM-is-not-a-rule-name
@@ -166,6 +169,10 @@
    ["ForAllIntro" 'FORALLINTRO]
    ["ExistsElim"  'EXISTSELIM]
    ["ExistsIntro" 'EXISTSINTRO]
+
+   ["Algebra" 'ALGEBRA]
+   ["ModusTollens" 'MODUSTOLLENS]
+   ["Contradiction" 'CONTRADICTION]
 
    ["∧Elim"   'ANDELIM-is-not-a-rule-name]
    ["∨Intro"  'ORINTRO-is-not-a-rule-name]
@@ -272,6 +279,7 @@
      [(INTRO Variable+ IN IDENTIFIER)
       (intro $2 $4)]]
 
+    #;
     [Justification
      [(BY ANDELIML ON PRef) (j:AndElimL $4)]
      [(BY ANDELIMR ON PRef) (j:AndElimR $4)]
@@ -288,7 +296,31 @@
      [(BY FORALLINTRO ON BRef) (j:ForallIntro $4)]
      [(BY EXISTSELIM ON PRef COMMA PRef) (j:ExistsElim $4 $6)]
      [(BY EXISTSINTRO ON PRef WITH VarMap) (j:ExistsIntro $4 $6)]
+     [(BY ALGEBRA) (j:algebra null)]
+     [(BY ALGEBRA ON PRef+) (j:algebra $4)]
+     [(BY PRef SEMICOLON MaybeVarMap MaybeDirection ON PRef+)
+      (j:elim $2 $4 $5 $7)]
+     [(BY BRef)
+      (j:intro $2)]]
 
+    [Justification
+     [(BY ANDELIML OnClause) (apply-on "∧ElimL" 1 $3 j:AndElimL)]
+     [(BY ANDELIMR OnClause) (apply-on "∧ElimR" 1 $3 j:AndElimR)]
+     [(BY ANDINTRO OnClause) (apply-on "∧Intro" 2 $3 j:AndIntro)]
+     [(BY ORELIM OnClause)   (apply-on "∨Elim" 3 $3 j:OrElim)]
+     [(BY ORINTROL OnClause) (apply-on "∨IntroL" 1 $3 j:OrIntroL)]
+     [(BY ORINTROR OnClause) (apply-on "∨IntroR" 1 $3 j:OrIntroR)]
+     [(BY IMPELIM OnClause)  (apply-on "⇒Elim" 2 $3 j:ImpElim)]
+     [(BY IMPINTRO OnClause) (apply-on "⇒Intro" 1 $3 j:ImpIntro)]
+     [(BY IFFELIMF OnClause) (apply-on "⇔ElimF" 1 $3 j:IffElimF)]
+     [(BY IFFELIMB OnClause) (apply-on "⇔ElimB" 1 $3 j:IffElimB)]
+     [(BY IFFINTRO OnClause) (apply-on "⇔Intro" 2 $3 j:IffIntro)]
+     [(BY FORALLELIM ON PRef WITH VarMap) (j:ForallElim $4 $6)]
+     [(BY FORALLINTRO ON BRef) (j:ForallIntro $4)]
+     [(BY EXISTSELIM ON PRef COMMA PRef) (j:ExistsElim $4 $6)]
+     [(BY EXISTSINTRO ON PRef WITH VarMap) (j:ExistsIntro $4 $6)]
+     [(BY ALGEBRA) (j:algebra null)]
+     [(BY ALGEBRA ON PRef+) (j:algebra $4)]
      [(BY PRef SEMICOLON MaybeVarMap MaybeDirection ON PRef+)
       (j:elim $2 $4 $5 $7)]
      [(BY BRef)
@@ -300,6 +332,8 @@
     [MaybeDirection
      [(Direction SEMICOLON) $1]
      [() #f]]
+    [OnClause
+     [(ON PRef+) (cons (cons $n-start-pos $n-end-pos) $2)]]
 
     [PRef
      [(HASH LineNumber)
@@ -379,6 +413,16 @@
      [(Expr COMMA Expr+) (cons $1 $3)]]
     )))
 
+(define (apply-on rule n-on on-args0 f . args)
+  (match-define (cons srcpair on-args) on-args0)
+  (unless (= n-on (length on-args))
+    (reject `(v "Justification has the wrong number of proposition arguments after ON."
+                (h "Rule: " ,(format "~a" rule))
+                (h "Expected: " ,(number->string n-on))
+                (h "Instead got: " ,(number->string (length on-args)))
+                (h "Source location: " ,(rich 'srcpair srcpair)))))
+  (apply f (append args on-args)))
+
 (struct axiom (n p) #:prefab)
 (struct line (n s) #:prefab)
 
@@ -425,6 +469,7 @@
 (struct j:ExistsIntro (p vm) #:prefab)
 (struct j:elim (p vm dir qs) #:prefab)
 (struct j:intro (b) #:prefab)
+(struct j:algebra (ps) #:prefab)
 
 (struct ref:line (ln) #:prefab)
 (struct ref:axiom (n) #:prefab)
@@ -764,6 +809,13 @@
                    " = " ,(rich 'prop prop)))]]
         [else null]))
 
+(define (err:bad-algebra prop)
+  `(v "The result proposition has the wrong form."
+      (p "The rule derives either an equation or a proposition with the same"
+         "logical structure as the first argument. In the second case, all of"
+         "the remaining arguments must be equations.")
+      (h "Instead found: " ,(rich 'prop prop))))
+
 ;; ============================================================
 
 ;; Proof = (Listof Statement)
@@ -856,6 +908,7 @@
     [(j:ExistsIntro p vm) "∃Intro"]
     [(j:elim p vm dir qs) "Relaxed Elimination"]
     [(j:intro b) "Relaxed Introduction"]
+    [(j:algebra _) "Algebra"]
     [_ #f]))
 
 (define (check-derive at prop just lenv)
@@ -1150,6 +1203,18 @@
        (if (pair? bvs) (prop:forall bvs bs iiprop) iiprop))
      (unless (prop=? prop aiprop)
        (badr #:expect aiprop))]
+    [(j:algebra refs)
+     (define ps (map getp refs))
+     (let ([fvs (prop-fvs prop (in-scope))])
+       (when (pair? fvs) (err:prop-fv #f fvs)))
+     (cond [(prop:eq? prop)
+            (void)]
+           [else
+            (match ps
+              [(cons propa (list (? prop:eq?) ...))
+               #:when (prop-same-logic? prop propa)
+               (void)]
+              [_ (reject (err:bad-algebra prop))])])]
     [_ (error 'check-derive "internal error: bad justification: ~e" just)]))
 
 (define (lineno-next n)
@@ -1164,6 +1229,33 @@
 
 (define (prop=? p q)
   (equal? p q))
+
+(define (prop-same-logic? a b)
+  ;; Do the props the same logical structure? (close enough for algebra?)
+  (let loop ([a a] [b b])
+    (match* [a b]
+      [[(prop:not a) (prop:not b)]
+       (loop a b)]
+      [[(prop:and a1 a2) (prop:and b1 b2)]
+       (and (loop a1 b1) (a2 b2))]
+      [[(prop:or a1 a2) (prop:or b1 b2)]
+       (and (loop a1 b1) (a2 b2))]
+      [[(prop:implies a1 a2) (prop:implies b1 b2)]
+       (and (loop a1 b1) (a2 b2))]
+      [[(prop:iff a1 a2) (prop:iff b1 b2)]
+       (and (loop a1 b1) (a2 b2))]
+      [[(prop:forall avs as ap) (prop:forall bvs bs bp)]
+       (and (= (length avs) (length bvs))
+            (loop ap bp))]
+      [[(prop:exists avs as ap) (prop:exists bvs bs bp)]
+       (and (= (length avs) (length bvs))
+            (loop ap bp))]
+      [[(prop:atomic a) (prop:atomic b)]
+       (equal? a b)]
+      [[(? prop:eq?) (? prop:eq?)] #t]
+      [[(? prop:pred?) (? prop:pred?)] #t]
+      [[(? prop:in?) (? prop:in?)] #t]
+      [[_ _] #f])))
 
 ;; discard Want lines, split into Intro{0,1}, Assume*, (Block/Derive)*
 (define (split-block b)
