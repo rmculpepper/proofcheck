@@ -1159,11 +1159,6 @@
      (< n1 at1)]
     [[_ _] #f]))
 
-(define (check lines)
-  (define lines1 (pass1 lines))
-  (define lines2 (pass2 lines1))
-  lines2)
-
 (define (prop=? p q)
   (equal? p q))
 
