@@ -742,7 +742,7 @@
       (h "Block: " ,(rich 'block-ref ref))))
 
 (define (err:incorrect-prop what got-p form mvenv mvwhy more expected)
-  `(v (h ,what ,(if form " does not have the correct form." "is incorrect."))
+  `(v (h ,what ,(if form " does not have the correct form." " is incorrect."))
       ,@(if form `[(h "Required form: " ,(rich 'pattern form))] '())
       ,@(err-part:mvenv mvenv mvwhy)
       ,@more
