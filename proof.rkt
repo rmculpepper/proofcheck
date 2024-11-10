@@ -14,7 +14,6 @@
 (define (tokenize get-token)
   (let loop ()
     (define next (get-token))
-    (eprintf "~v\n" next)
     (if (eq? next 'EOF) null (cons next (loop)))))
 
 (define (string->tokens lex s)
@@ -204,6 +203,8 @@
    [":->" 'MAPSTO]
    ["in" 'IN]
 
+   ["NN" (token-IDENTIFIER 'ℕ)]
+
    [$N+ (token-INTEGER (string->number lexeme))]
    [(:: $N+ (:+ "." $N+) (:? "."))
     (token-LINENUMBER (map string->number (string-split lexeme "." #:trim? #t)))]
@@ -352,7 +353,10 @@
      [(Variable+ MAPSTO Expr+)
       (let ([vars $1] [exprs $3])
         (unless (= (length vars) (length exprs))
-          (error "bad variable mapping"))
+          (reject `(v "Bad variable mapping."
+                      "The number of variables does not match the number of expressions."
+                      (h "Variables: " ,(rich 'vars vars))
+                      (h "Expressions: " ,(rich 'exprs exprs)))))
         (map cons vars exprs))]]
     [Direction
      [(FORWARD) 'forward]
@@ -385,6 +389,7 @@
       (prop:eq $1 $3)]
      [(IDENTIFIER LP Expr+ RP)
       (prop:pred $1 $3)]
+     #;
      [(Expr IN Set)
       (prop:in $1 $3)]
      [(IDENTIFIER)
@@ -526,7 +531,7 @@
 (define (prop-subst p vm [vmfv (exprs-fvs (map cdr vm))])
   (let loop ([p p])
     (match p
-      [(prop:not p) (prop:not p)]
+      [(prop:not p) (prop:not (loop p))]
       [(prop:and p q) (prop:and (loop p) (loop q))]
       [(prop:or p q) (prop:or (loop p) (loop q))]
       [(prop:implies p q) (prop:implies (loop p) (loop q))]
@@ -1233,14 +1238,12 @@
      (define ps (map getp refs))
      (let ([fvs (prop-fvs prop (in-scope))])
        (when (pair? fvs) (err:prop-fv #f fvs)))
-     (cond [(prop:eq? prop)
-            (void)]
-           [else
-            (match ps
-              [(cons propa (list (? prop:eq?) ...))
-               #:when (prop-same-logic? prop propa)
-               (void)]
-              [_ (reject (err:bad-algebra prop))])])]
+     (unless (prop-algebra-can-derive? prop)
+       (match ps
+         [(cons propa (list (? prop:eq?) ...))
+          #:when (prop-same-logic? prop propa)
+          (void)]
+         [_ (reject (err:bad-algebra prop))]))]
     [(j:ModusTollens (app getp pq) (app getp nq))
      (define-values (pp qq)
        (match pq
@@ -1299,6 +1302,16 @@
 
 (define (prop=? p q)
   (equal? p q))
+
+(define (prop-algebra-can-derive? p)
+  (match p
+    [(prop:not p) (prop-algebra-can-derive? p)]
+    [(prop:and p q) (and (prop-algebra-can-derive? p)
+                         (prop-algebra-can-derive? q))]
+    [(prop:eq _ _) #t]
+    [(prop:pred 'lt (list _ _)) #t]
+    [(prop:pred 'le (list _ _)) #t]
+    [_ #f]))
 
 (define (prop-same-logic? a b)
   ;; Do the props the same logical structure? (close enough for algebra?)
