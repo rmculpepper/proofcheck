@@ -7,11 +7,7 @@
 (provide (all-from-out "proof.rkt")
          (all-defined-out))
 
-(define common-axioms
-  (string->proof "
-Axiom 101: X and Y
-Axiom 102: ∀ x ∈ X, r(x)
-"))
+(define common-axioms (make-parameter null))
 
 (begin-for-syntax
   (define ((tc-macro fun-id) stx)
@@ -25,7 +21,7 @@ Axiom 102: ∀ x ∈ X, r(x)
 (define (tok* src s)
   (test-case (srcloc->string src)
     (define pf (string->proof s))
-    (define result (check-proof (append common-axioms pf)))
+    (define result (check-proof (append (common-axioms) pf)))
     (void)))
 
 (define (tperr* src s #:err [pred/rx exn:fail?])
@@ -37,14 +33,14 @@ Axiom 102: ∀ x ∈ X, r(x)
 (define (terr* src s #:err [pred/rx exn:fail?])
   (test-case (srcloc->string src)
     (define pf (string->proof s))
-    (check-exn pred/rx (lambda () (check-proof (append common-axioms pf))))
+    (check-exn pred/rx (lambda () (check-proof (append (common-axioms) pf))))
     (void)))
 
 ;; ----------------------------------------
 
 (tperr
  #:err #rx"wrong number of proposition arguments"
- "1 Derive X by AndElimL on Axiom 101, Axiom 101")
+ "Axiom 1: X and Y \n 1 Derive X by AndElimL on Axiom 1, Axiom 1")
 
 (tperr
  #:err #rx"Bad line number"
@@ -178,7 +174,8 @@ Axiom 102: ∀ x ∈ X, r(x)
 ;; FIXME: handle one vm for multiple explicit foralls!
 
 ;; Forall Intro
-(tok "1 Block 1.1 Intro a in X 1.2 Derive r(a) by ForAllElim on Axiom 102 with x :-> a
+(tok "Axiom 102: ∀ x ∈ X, r(x)
+1 Block 1.1 Intro a in X 1.2 Derive r(a) by ForAllElim on Axiom 102 with x :-> a
 2 Derive forall a in X, r(a) by ForAllIntro on #1")
 
 (terr "1 Block 1.1 Assume A
@@ -187,7 +184,8 @@ Axiom 102: ∀ x ∈ X, r(x)
 2 Derive forall x in S, B by ForAllIntro on #1" #:err #rx"not allow.*Assume")
 (terr "1 Block 1.1 Intro x in S 1.2 Block
 2 Derive forall x in S, A by ForAllIntro on #1" #:err #rx"end with a Derive")
-(terr "1 Block 1.1 Intro a in X 1.2 Derive r(a) by ForAllElim on Axiom 102 with x :-> a
+(terr "Axiom 102: ∀ x ∈ X, r(x)
+1 Block 1.1 Intro a in X 1.2 Derive r(a) by ForAllElim on Axiom 102 with x :-> a
 2 Derive forall a in X, C by ForAllIntro on #1" #:err (badr))
 
 ;; Exists Elim
