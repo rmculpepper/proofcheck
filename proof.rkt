@@ -69,6 +69,7 @@
    EXISTSINTRO
    ALGEBRA
    MODUSTOLLENS
+   DISJSYLLOGISM
    CONTRADICTION
 
    ORINTRO-is-not-a-rule-name
@@ -172,6 +173,7 @@
 
    ["Algebra" 'ALGEBRA]
    ["ModusTollens" 'MODUSTOLLENS]
+   ["DisjunctiveSyllogism" 'DISJSYLLOGISM]
    ["Contradiction" 'CONTRADICTION]
 
    ["∧Elim"   'ANDELIM-is-not-a-rule-name]
@@ -322,6 +324,7 @@
      [(BY ALGEBRA) (j:algebra null)]
      [(BY ALGEBRA ON PRef+) (j:algebra $4)]
      [(BY MODUSTOLLENS OnClause) (apply-on "ModusTollens" 2 $3 j:ModusTollens)]
+     [(BY DISJSYLLOGISM OnClause) (apply-on "DisjunctiveSyllogism" 2 $3 j:DisjSyl)]
      [(BY CONTRADICTION OnClause) (apply-on "Contradiction" 1 $3 j:Contradiction)]
      [(BY PRef SEMICOLON MaybeVarMap MaybeDirection ON PRef+)
       (j:elim $2 $4 $5 $7)]
@@ -475,6 +478,7 @@
 (struct j:intro (b) #:prefab)
 (struct j:algebra (ps) #:prefab)
 (struct j:ModusTollens (pq nq) #:prefab)
+(struct j:DisjSyl (pq np) #:prefab)
 (struct j:Contradiction (b) #:prefab)
 
 (struct ref:line (ln) #:prefab)
@@ -653,7 +657,8 @@
 
 (define current-reject
   (make-parameter
-   (lambda (rt) (raise-user-error (rich-text->string rt)))))
+   (lambda (rt)
+     (raise-user-error (rich-text->string rt)))))
 
 (define (error* fmt . args)
   (define info (error-info))
@@ -690,9 +695,14 @@
     [(rich 'ref (ref:axiom n)) (format "Axiom ~a" n)]
     [(rich 'ref (ref:line ln)) (format "Proposition #~a" (lineno->string ln))]
     [(rich 'ref #f) "Proposition"]
+    [(rich 'block-ref (ref:line ln)) (format "Block #~a" (lineno->string ln))]
     [(rich 'var var) (symbol->string var)]
     [(rich 'vars vs) (string-join (map symbol->string vs) ", ")]
-    [(rich 'pattern s) s]))
+    [(rich 'pattern s) s]
+    [(rich 'srcpair p) (let ([a (car p)] [b (cdr p)])
+                         (format "~a:~a-~a:~a"
+                                 (position-line a) (position-col a)
+                                 (position-line b) (position-col b)))]))
 
 (define (err:line ln [stmt #f])
   `(h "Error on line #" ,(rich 'lineno ln) ":"))
@@ -778,7 +788,7 @@
 (define (err:block-need-one-assume ref n-assumes)
   `(v "The rule requires the block to have a single Assume statement,"
       (h "but the referenced block has "
-         (if (zero? n-assumes) "no" (format "~a" n-assumes))
+         ,(if (zero? n-assumes) "no" (format "~a" n-assumes))
          " Assume statements.")))
 
 (define (err:block-unwanted-assume ref)
@@ -906,7 +916,7 @@
     [(j:AndIntro p q) "∧Intro"]
     [(j:OrElim pq hp hq) "∨Elim"]
     [(j:OrIntroL p) "∨IntroL"]
-    [(j:OrIntroL q) "∨IntroR"]
+    [(j:OrIntroR q) "∨IntroR"]
     [(j:ImpElim pq p) "⇒Elim"]
     [(j:ImpIntro b) "⇒Intro"]
     [(j:IffElimF p) "⇔ElimF"]
@@ -920,6 +930,7 @@
     [(j:intro b) "Relaxed Introduction"]
     [(j:algebra _) "Algebra"]
     [(j:ModusTollens _ _) "Modus Tollens"]
+    [(j:DisjSyl _ _) "Disjunctive Syllogism"]
     [(j:Contradiction _) "Contradiction"]
     [_ #f]))
 
@@ -1237,6 +1248,22 @@
        (bad 2 nq "¬q" `((p ,pp) (q ,qq)) 'prev #:expect (prop:not qq)))
      (unless (prop=? prop (prop:not pp))
        (badr "¬p" `((p ,pp) (q ,qq)) 'args #:exact (prop:not pp)))]
+    [(j:DisjSyl pq np)
+     (define-values (pp qq)
+       (match pq
+         [(prop:or pp qq)
+          (values pp qq)]
+         [_ (bad 1 pq "p ∨ q")]))
+     (cond [(prop=? np (prop:not pp))
+            (unless (prop=? prop qq)
+              (badr "q" `((p ,pp) (q ,qq)) 'args #:expect qq))]
+           [(prop=? np (prop:not qq))
+            (unless (prop=? prop pp)
+              (badr "p" `((p ,pp) (q ,qq)) 'args #:expect pp))]
+           [else
+            (bad 2 np "¬r" `((p ,pp) (q ,qq)) 'prev
+                 #:more `[(h " where " ,(rich 'pattern "r") " is either "
+                             ,(rich 'pattern "p") " or " ,(rich 'pattern "q"))])])]
     [(j:Contradiction (and b-ref (app getb b)))
      (define-values (intros assumes rest) (split-block b))
      (unless (null? intros)
