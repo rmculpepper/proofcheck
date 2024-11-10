@@ -54,9 +54,13 @@
        (div ([id "output_area"] [style "display: none"])
             (h2 "Output")
 
-            (p ([id "out_of_date"] [style "display: none"])
-               "The proof has changed since it was last checked, "
-               "so this output is out of date.")
+            (div ([id "wait_for_server"] [class "waiting"] [style "display: none"])
+                 (div ([class "par"]) "Waiting for the server to respond."))
+
+            (div ([id "out_of_date"] [class "outdated"] [style "display: none"])
+                 (div ([class "par"])
+                      "The proof has changed since it was last checked, " (br)
+                      "so this output may be out of date."))
 
             (div ([id "output_inner_area"]))
 
@@ -92,7 +96,8 @@
 
             (h3 "Example: Implication")
 
-            (pre "
+            (div ([class "example"])
+                 (pre "
 Axiom 1: Tue implies CS220
 Axiom 2: Thu implies CS220
 Axiom 3: CS220 implies Happy
@@ -103,11 +108,12 @@ Axiom 3: CS220 implies Happy
   1.3 Derive CS220 by ImpliesElim on Axiom 1, #1.1
   1.4 Derive Happy by ImpliesElim on Axiom 3, #1.3
 2 Derive Tue implies Happy by ImpliesIntro on #1
-")
+"))
 
             (h3 "Example: Disjunction")
 
-            (pre "
+            (div ([class "example"])
+                 (pre "
 Axiom 1: sun implies (bike and garden)
 Axiom 2: rain implies clean
 
@@ -129,11 +135,12 @@ Axiom 2: rain implies clean
   1.7 Derive rain implies (garden or clean) by ImpliesIntro on #1.6
   1.8 Derive garden or clean by OrElim on #1.1, #1.5, #1.
 2 Derive (sun or rain) implies (garden or clean) by ImpliesIntro on #1
-")
+"))
 
             (h3 "Example: Universal")
 
-            (pre "
+            (div ([class "example"])
+                 (pre "
 Axiom 1: Small('Mouse')
 Axiom 2: Brave('Lion')
 Axiom 3: forall a,b in A, (Small(a) and Brave(b)) implies Fears(a,b)
@@ -144,11 +151,12 @@ Axiom 3: forall a,b in A, (Small(a) and Brave(b)) implies Fears(a,b)
   by ForAllElim on Axiom 3 with a,b :-> 'Mouse', 'Lion'
 3 Derive Fears('Mouse', 'Lion')
   by ImpliesElim on #2, #1
-")
+"))
 
             (h3 "Example: Existentials, Algebra")
 
-            (pre "
+            (div ([class "example"])
+                 (pre "
 Axiom 1: forall n in NN, Even(n) iff (exists k in NN, n = 2*k)
 Axiom 2: forall n in NN, Odd(n) iff (exists k in NN, n = 2*k+1)
 
@@ -170,11 +178,12 @@ Axiom 2: forall n in NN, Odd(n) iff (exists k in NN, n = 2*k+1)
       by ExistsElim on #1.4, #1.5
 2 Derive forall n in NN, Odd(n) implies Even(n+1)
   by #1
-")
+"))
 
             (h3 "Example: Contradiction")
 
-            (pre "
+            (div ([class "example"])
+                 (pre "
 1 Block
   1.1 Assume not A
   1.2 Want not (A and B)
@@ -185,7 +194,7 @@ Axiom 2: forall n in NN, Odd(n) iff (exists k in NN, n = 2*k+1)
     1.3.4 Derive A and not A by AndIntro on #1.3.3, #1.1
   1.4 Derive not (A and B) by Contradiction on #1.3
 2 Derive not A implies not (A and B) by ImpliesIntro on #1
-")
+"))
 
             #|/div:docs|#))
 

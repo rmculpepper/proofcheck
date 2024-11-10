@@ -15,15 +15,98 @@ h1, h2, h3 {
     height: 100%;
 }
 
-p {
+p, .par {
     max-width: 75ex;
 }
 
 .warning {
     color: darkred;
 }
+
+.outdated {
+    border: solid 1pt darkred;
+    margin: 1em;
+    padding: 0.5em;
+    background-color: #FFFFE0;
+    /* width: 100%; */
+}
+
+.waiting {
+    border: solid 1pt yellow;
+    margin: 1em;
+    padding: 0.5em;
+    background-color: #FFFFE0;
+    /* width: 100%; */
+}
+
+.example {
+    border: solid 1pt gray;
+    margin: 1em;
+    padding: 0pt 1em;
+}
+
+#output_inner_area {
+    border: solid 1pt gray;
+    margin: 1em;
+    padding: 0.5em;
+}
 /* ---------------------------------------- */
 
+.check_hide {
+    display: none;
+}
+.check_good {
+    background-color: #EEFFEE;
+}
+.check_bad {
+    background-color: #FFEEEE;
+}
+
+.rt_h {
+    white-space: pre-wrap;
+}
+
+.r_lineno {
+    font-weight: bold;
+}
+.r_prop {
+    color: darkblue;
+    font-family: monospace, monospace;
+    font-weight: bold;
+}
+.r_expr {
+    color: blue;
+    font-family: monospace, monospace;
+}
+.r_exprs {}
+.r_ref_ax {
+    font-weight: bold;
+}
+.r_ref_line {
+    font-weight: bold;
+}
+.r_ref_prop {}
+.r_block_line {
+    font-weight: bold;
+}
+.r_var {
+    color: purple;
+    font-family: monospace, monospace;
+}
+.r_vars {}
+.r_pattern {
+    color: darkgreen;
+    font-family: monospace, monospace;
+}
+.r_srcpair {
+    font-weight: bold;
+}
+.r_rule {
+    color: darkgreen;
+    font-weight: bold;
+}
+
+/* ---------------------------------------- */
 .form_inputs {
     display: table;
 }

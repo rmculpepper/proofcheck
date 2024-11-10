@@ -26,24 +26,35 @@ function prooftext_changed() {
 /* Submit the prooftext for checking, then update the output display.
  */
 function check_prooftext() {
+    $("#out_of_date").hide(); // FIXME: race condition
+    $("#wait_for_server").show();
     ajax_json({
         url: "check",
         method: "POST",
         data: { proof: $("#prooftext").val() },
         success: function(resp) {
-            // resp.v resp.type (resp.error | resp.pass)
-            if (resp.format == "text") {
+            let area = $("#output_inner_area");
+            if (resp.error) {
+                area.removeClass("check_good");
+                area.addClass("check_bad");
+            } else {
+                area.removeClass("check_bad");
+                area.addClass("check_good");
+            }
+            if (resp.format == "html") {
+                area.html($(resp.errorh || resp.passh));
+            } else if (resp.format == "text") {
                 let pre = $("<pre>");
                 pre.html(resp.error || resp.pass);
-                $("#output_inner_area").html(pre);
+                area.html(pre);
             }
+            $("#wait_for_server").hide();
             $("#output_area").show();
-            $("#out_of_date").hide();
         },
         error: function() {
-            $("#output_area").show();
             $("#output_inner_area").html("<p>The server raised an exception.</p>");
-            $("#out_of_date").hide();
+            $("#output_area").show();
+            $("#wait_for_server").hide();
         }
     });
 }
