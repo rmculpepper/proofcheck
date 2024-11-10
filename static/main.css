@@ -39,6 +39,12 @@ p, .par {
     /* width: 100%; */
 }
 
+.axioms {
+    border: solid 1pt gray;
+    margin: 1em;
+    padding: 0pt 1em;
+}
+
 .example {
     border: solid 1pt gray;
     margin: 1em;
