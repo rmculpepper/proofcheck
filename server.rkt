@@ -77,7 +77,7 @@ Axiom 8: ∀ d,n ∈ NN, Divides(d,n) ⇔ (∃ k ∈ NN, n = k*d)
                  #:command-line? #t
                  ;; #:launch-browser? #f
                  #:extra-files-paths (list (path->string static-dir))
-                 #:log-file (if log? "/dev/stdout" #f)))
+                 #:log-file (and log? "log.txt")))
 
 (module+ main
-  (start #f))
+  (start #t))
