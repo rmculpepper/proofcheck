@@ -35,6 +35,7 @@
       (response/jsexpr result))]
    ))
 
+
 (define axioms6 (string->proof "
 Axiom 1: Small('Mouse')
 Axiom 2: Brave('Lion')
@@ -44,6 +45,9 @@ Axiom 5: ∀ n ∈ NN, Even(n) ⇔ (∃ k ∈ NN, n = 2*k)
 Axiom 6: ∀ n ∈ NN, Odd(n) ⇔ (∃ k ∈ NN, n = 2*k + 1)
 Axiom 7: ∀ n ∈ NN, Even(n) ∨ Odd(n)
 Axiom 8: ∀ d,n ∈ NN, Divides(d,n) ⇔ (∃ k ∈ NN, n = k*d)
+Axiom 9: ∀ n ∈ NN, Composite(n) ⇔ (∃ d ∈ NN, lt(1, d) ∧ lt(d, n) ∧ Divides(d, n))
+Axiom 10: ∀ n,d,q,r ∈ NN, Div(n,d,q,r) ⇔ (n = q*d + r ∧ le(0, r) ∧ lt(r, d))
+Axiom 11: ∀ n,d,q1,r1,q2,r2 ∈ NN, Div(n,d,q1,r1) ⇒ Div(n,d,q2,r2) ⇒ (q1 = q2) ∧ (r1 = r2)
 "))
 
 ;; handle-check : JSExpr -> JSExpr
