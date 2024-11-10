@@ -702,13 +702,14 @@
     [(rich 'srcpair p) (let ([a (car p)] [b (cdr p)])
                          (format "~a:~a-~a:~a"
                                  (position-line a) (position-col a)
-                                 (position-line b) (position-col b)))]))
+                                 (position-line b) (position-col b)))]
+    [(rich 'rule s) s]))
 
 (define (err:line ln [stmt #f])
   `(h "Error on line #" ,(rich 'lineno ln) ":"))
 
 (define (err:rule just)
-  `(h "Incorrect use of " ,(justification-rule-name just)))
+  `(h "Incorrect use of " ,(rich 'rule (justification-rule-name just))))
 
 (define (err:got-arg p)
   `(h "Instead got: " ,(rich 'prop p)))
