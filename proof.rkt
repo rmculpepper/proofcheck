@@ -1154,6 +1154,8 @@
      (match vm
        [(list (cons vv ve))
         #:when (equal? vv rv)
+        (void)
+        #; ;; should be impossible
         (let ([fv (expr-fvs ve (in-scope))])
           (when (pair? fv)
             (reject (err:witness-fv fv))))]
@@ -1247,8 +1249,8 @@
      (unless (prop=? nq (prop:not qq))
        (bad 2 nq "¬q" `((p ,pp) (q ,qq)) 'prev #:expect (prop:not qq)))
      (unless (prop=? prop (prop:not pp))
-       (badr "¬p" `((p ,pp) (q ,qq)) 'args #:exact (prop:not pp)))]
-    [(j:DisjSyl pq np)
+       (badr "¬p" `((p ,pp) (q ,qq)) 'args #:expect (prop:not pp)))]
+    [(j:DisjSyl (app getp pq) (app getp np))
      (define-values (pp qq)
        (match pq
          [(prop:or pp qq)
@@ -1304,13 +1306,13 @@
       [[(prop:not a) (prop:not b)]
        (loop a b)]
       [[(prop:and a1 a2) (prop:and b1 b2)]
-       (and (loop a1 b1) (a2 b2))]
+       (and (loop a1 b1) (loop a2 b2))]
       [[(prop:or a1 a2) (prop:or b1 b2)]
-       (and (loop a1 b1) (a2 b2))]
+       (and (loop a1 b1) (loop a2 b2))]
       [[(prop:implies a1 a2) (prop:implies b1 b2)]
-       (and (loop a1 b1) (a2 b2))]
+       (and (loop a1 b1) (loop a2 b2))]
       [[(prop:iff a1 a2) (prop:iff b1 b2)]
-       (and (loop a1 b1) (a2 b2))]
+       (and (loop a1 b1) (loop a2 b2))]
       [[(prop:forall avs as ap) (prop:forall bvs bs bp)]
        (and (= (length avs) (length bvs))
             (loop ap bp))]
