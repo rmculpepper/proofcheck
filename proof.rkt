@@ -1132,9 +1132,14 @@
      (match hassumes
        [(list (assume ha))
         (unless (prop=? ha body*)
-          (error* (string-append
-                   "(FIXME) wrong assumption")))
-        (void)]
+          (reject
+           (err:incorrect-prop
+            "The block's assumption" ha "P(y)" null #f
+            `[" where"
+              (h "  " ,(rich 'pattern "P(x)") " = " ,(rich 'prop pbody))
+              (h "  " ,(rich 'pattern "x") " = " ,(rich 'var pv))
+              (h "  " ,(rich 'pattern "y") " = " ,(rich 'var hv))]
+            body*)))]
        [as (reject (err:block-need-one-assume b-ref (length as)))])
      (define plast
        (match (and (pair? hrest) (last hrest))
