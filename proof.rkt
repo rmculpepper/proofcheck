@@ -22,8 +22,10 @@
   (define (get-token) (lex in))
   (tokenize get-token))
 
-;; Drop NEWLINE token except before AXIOM, LINENUMBER, or INTEGER.
 (define (wrap-get-token get)
+  ;; Once proof has started, drop NEWLINE token
+  ;; except before LINENUMBER, or INTEGER.
+  (define proof-started? #f)
   (define peeked null)
   (lambda ()
     (cond [(pair? peeked)
@@ -34,10 +36,13 @@
              [(and t-nl (position-token 'NEWLINE start end))
               (match (get)
                 [(and t-la (position-token (app token-name aname) _ _))
-                 #:when (memq aname '(AXIOM LINENUMBER INTEGER))
+                 #:when (and proof-started? (memq aname '(LINENUMBER INTEGER)))
                  (begin0 t-nl (set! peeked (list t-la)))]
                 [t-la t-la])]
-             [next next])])))
+             [(and next (position-token (app token-name tname) _ _))
+              (when (memq tname '(ASSUME BLOCK DERIVE INTRO WANT))
+                (set! proof-started? #t))
+              next])])))
 
 (define-tokens tokens1
   (LINENUMBER
