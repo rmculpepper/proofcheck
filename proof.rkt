@@ -22,6 +22,23 @@
   (define (get-token) (lex in))
   (tokenize get-token))
 
+;; Drop NEWLINE token except before AXIOM, LINENUMBER, or INTEGER.
+(define (wrap-get-token get)
+  (define peeked null)
+  (lambda ()
+    (cond [(pair? peeked)
+           (begin0 (car peeked)
+             (set! peeked (cdr peeked)))]
+          [else
+           (match (get)
+             [(and t-nl (position-token 'NEWLINE start end))
+              (match (get)
+                [(and t-la (position-token (app token-name aname) _ _))
+                 #:when (memq aname '(AXIOM LINENUMBER INTEGER))
+                 (begin0 t-nl (set! peeked (list t-la)))]
+                [t-la t-la])]
+             [next next])])))
+
 (define-tokens tokens1
   (LINENUMBER
    INTEGER
@@ -31,6 +48,7 @@
 
 (define-tokens tokens0
   (EOF
+   NEWLINE
    LP
    RP
    HASH
@@ -97,15 +115,23 @@
   [$N (:/ "0" "9")]
   [$N+ (:+ $N)]
   [$AN (:or $A $N)]
+  [$LWS (:or " " "\t")]
+  [$LWS+ (:+ $LWS)]
+  [$NL (:or "\v" "\n" "\f" "\r")]
+  [$NL+ (:+ $NL)]
   [$WS (:or " " "\t" "\v" "\n" "\f" "\r")]
   [$WS+ (:+ $WS)])
 
 (define lex
   (lexer-src-pos
    [(eof) 'EOF]
-   [$WS+ (return-without-pos (lex input-port))]
+   [$LWS+ (return-without-pos (lex input-port))]
+   [$NL+ 'NEWLINE]
+   [(:: "//" (:* (:~ $NL))) (return-without-pos (lex input-port))]
+   #;
    ["//" (begin (void (read-line input-port))
-                (return-without-pos (lex input-port)))]
+                'NEWLINE
+                #;(return-without-pos (lex input-port)))]
    [(:: "'" $A (:+ $AN) "'")
     (token-OBJECTNAME (let ([s lexeme]) (substring s 1 (sub1 (string-length s)))))]
 
@@ -215,7 +241,7 @@
 (define (base:string->lines s)
   (define in (open-input-string s))
   (port-count-lines! in)
-  (base:parse (lambda () (lex in))))
+  (base:parse (wrap-get-token (lambda () (lex in)))))
 
 (define (parser-error tok-ok? tok-name tok-value start end #:stack se)
   (error 'parser
@@ -232,7 +258,7 @@
 (define base:parse
   (parser
    (tokens tokens0 tokens1)
-   (start AxiomsProof)
+   (start Start)
    (end EOF)
    (error parser-error)
    (src-pos)
@@ -249,6 +275,10 @@
           (left TIMES))
    (grammar
 
+    [Start
+     [(NEWLINE Start) $2]
+     [(AxiomsProof) $1]]
+
     [AxiomsProof
      [(AxiomDecl AxiomsProof)
       (cons $1 $2)]
@@ -258,10 +288,14 @@
      [() null]
      [(Line Proof) (cons $1 $2)]]
     [Line
-     [(LineNumber Statement) (line $1 $2)]]
+     [(LineNumber Statement MaybeNL) (line $1 $2)]]
+
+    [MaybeNL
+     [(NEWLINE) (void)]
+     [() (void)]]
 
     [AxiomDecl
-     [(AXIOM INTEGER COLON Prop)
+     [(AXIOM INTEGER COLON Prop MaybeNL)
       (axiom $2 $4)]]
 
     [LineNumber
@@ -281,30 +315,6 @@
       (want $2)]
      [(INTRO Variable+ IN IDENTIFIER)
       (intro $2 $4)]]
-
-    #;
-    [Justification
-     [(BY ANDELIML ON PRef) (j:AndElimL $4)]
-     [(BY ANDELIMR ON PRef) (j:AndElimR $4)]
-     [(BY ANDINTRO ON PRef COMMA PRef) (j:AndIntro $4 $6)]
-     [(BY ORELIM ON PRef COMMA PRef COMMA PRef) (j:OrElim $4 $6 $8)]
-     [(BY ORINTROL ON PRef) (j:OrIntroL $4)]
-     [(BY ORINTROR ON PRef) (j:OrIntroR $4)]
-     [(BY IMPELIM ON PRef COMMA PRef) (j:ImpElim $4 $6)]
-     [(BY IMPINTRO ON BRef) (j:ImpIntro $4)]
-     [(BY IFFELIMF ON PRef) (j:IffElimF $4)]
-     [(BY IFFELIMB ON PRef) (j:IffElimB $4)]
-     [(BY IFFINTRO ON PRef COMMA PRef) (j:IffIntro $4 $6)]
-     [(BY FORALLELIM ON PRef WITH VarMap) (j:ForallElim $4 $6)]
-     [(BY FORALLINTRO ON BRef) (j:ForallIntro $4)]
-     [(BY EXISTSELIM ON PRef COMMA PRef) (j:ExistsElim $4 $6)]
-     [(BY EXISTSINTRO ON PRef WITH VarMap) (j:ExistsIntro $4 $6)]
-     [(BY ALGEBRA) (j:algebra null)]
-     [(BY ALGEBRA ON PRef+) (j:algebra $4)]
-     [(BY PRef SEMICOLON MaybeVarMap MaybeDirection ON PRef+)
-      (j:elim $2 $4 $5 $7)]
-     [(BY BRef)
-      (j:intro $2)]]
 
     [Justification
      [(BY ANDELIML OnClause) (apply-on "∧ElimL" 1 $3 j:AndElimL)]
