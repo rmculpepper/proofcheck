@@ -110,6 +110,7 @@
    IN
    BY
    ON
+   FOR
    WITH
    FORWARD
    BACKWARD
@@ -312,14 +313,21 @@
     [Statement
      [(DERIVE Prop Justification)
       (derive $2 $3)]
-     [(BLOCK)
-      'block]
+     [(BLOCK MaybeFor)
+      (block $2 #f)]
      [(ASSUME Prop)
       (assume $2)]
      [(WANT Prop)
       (want $2)]
      [(INTRO Variable+ IN IDENTIFIER)
       (intro $2 $4)]]
+
+    [MaybeFor
+     [() #f]
+     [(FOR FORALLINTRO) 'forall]
+     [(FOR IMPINTRO) 'implies]
+     [(FOR EXISTSELIM) 'exists]
+     [(FOR CONTRADICTION) 'contradiction]]
 
     [Justification
      [(BY ANDELIML OnClause) (apply-on "∧ElimL" 1 $3 j:AndElimL)]
@@ -454,7 +462,7 @@
 (struct line (n s) #:prefab)
 
 (struct derive (p j) #:prefab)
-(struct block (ss) #:prefab)
+(struct block (rule ss) #:prefab)
 (struct assume (p) #:prefab)
 (struct intro (vs s) #:prefab)
 (struct want (p) #:prefab)
@@ -634,14 +642,14 @@
   (match lines
     [(list)
      null]
-    [(cons (line n 'block) lines)
+    [(cons (line n (block rule #f)) lines)
      (define (line-number-extends-n? l)
        (match-define (line ln _) l)
        (define-values (n* ln*) (drop-common-prefix n ln))
        (null? n*))
      (define-values (block-lines rest-lines)
        (splitf-at lines line-number-extends-n?))
-     (cons (line n (block (pass1 block-lines)))
+     (cons (line n (block rule (pass1 block-lines)))
            (pass1 rest-lines))]
     [(cons l lines)
      (cons l (pass1 lines))]))
@@ -665,8 +673,8 @@
         (reject `(v (h "Bad line number: " ,(rich 'lineno n))
                     (h "Previous line number: " ,(rich 'lineno lastn))))])
      (cons (match stmt
-             [(block b-lines)
-              (line n (block (pass2 b-lines (append n '(0)))))]
+             [(block rule b-lines)
+              (line n (block rule (pass2 b-lines (append n '(0)))))]
              [_ (line n stmt)])
            (pass2 lines n))]))
 
@@ -750,16 +758,6 @@
   `(v (p "The witness expression refers to one or more variables"
          "that are not in scope.")
       (h "Free variables: " ,(rich 'vars fvs))))
-
-(define (err:misplaced-assume)
-  `(v "Assume statement is not allowed here."
-      (p "An Assume statement must be at the beginning of the block,"
-         "after the Intro statement, if any, but before any"
-         "Derive or Block statement.")))
-
-(define (err:misplaced-intro)
-  `(v "Intro statement is not allowed here."
-      "An Intro statement must be the first statement of a block."))
 
 (define (err:intro-not-fresh var)
   `(v "Intro statement introduces a variable that is already in scope."
@@ -868,59 +866,143 @@
 ;; check-proof : Lines -> #f or Prop
 ;; Returns prop for complete proof (ends in Derive), #f otherwise.
 (define (check-proof lines)
-  (check-block lines (hash))
+  (check-block lines (hash) 'top)
   (match (and (pair? lines) (last lines))
     [(line ln (derive p _)) p]
     [_ #f]))
 
-(define (check-block lines lenv)
-  (check-lines lines lenv '(intro assume)))
+(define (check-block lines lenv b-rule)
+  (check-lines lines lenv (block-rule->state b-rule) b-rule))
 
-(define (check-lines lines lenv allow)
+(define (check-lines lines lenv state b-rule)
   (match lines
     [(list)
      (void)]
     [(cons (axiom n p) lines)
+     ;; Parser ensures axiom decl only at top level, before proof.
      (let ([fvs (prop-fvs p null)])
        (unless (null? fvs)
          (reject (err:prop-fv (ref:axiom n) fvs))))
-     (check-lines lines (hash-set lenv (ref:axiom n) p) allow)]
+     (check-lines lines (hash-set lenv (ref:axiom n) p) state b-rule)]
     [(cons (line n stmt) lines)
-     (define allow*
+     (define state*
        (parameterize ((error-info (list (err:line n stmt))))
-         (check-statement n stmt lenv allow)))
-     (check-lines lines (hash-set lenv n stmt) allow*)]))
+         (check-statement n stmt lenv state b-rule)))
+     (check-lines lines (hash-set lenv n stmt) state* b-rule)]))
 
-;; STType = (U 'intro 'assume)
-
-;; check-statement : LineNo Statement LEnv (Listof STType) -> (Listof STType)
+;; check-statement : LineNo Statement LEnv BlockState BlockRule -> BlockState
 ;; Returns list of special statement types allowed *after* this statement.
-(define (check-statement n stmt lenv allow)
+(define (check-statement n stmt lenv state b-rule)
   (match stmt
     [(derive prop just)
-     (check-derive n prop just lenv)
-     null]
+     (begin0 (block-state-check/advance state b-rule 'derive)
+       (check-derive n prop just lenv))]
     [(want prop)
-     allow]
-    [(assume prop)
-     (unless (memq 'assume allow)
-       (reject (err:misplaced-assume)))
      (let ([fvs (prop-fvs prop (in-scope))])
        (unless (null? fvs)
          (reject (err:prop-fv #f fvs))))
-     '(assume)]
+     state]
+    [(assume prop)
+     (begin0 (block-state-check/advance state b-rule 'assume)
+       (let ([fvs (prop-fvs prop (in-scope))])
+         (unless (null? fvs)
+           (reject (err:prop-fv #f fvs)))))] 
     [(intro vars s)
-     (unless (memq 'intro allow)
-       (reject (err:misplaced-intro)))
-     (for ([var (in-list vars)])
-       (when (memq var (in-scope))
-         (reject (err:intro-not-fresh var))))
-     (in-scope (append vars (in-scope)))
-     '(assume)]
-    [(block lines)
-     (parameterize ((in-scope (in-scope))) ;; mutated by Intro
-       (check-block lines lenv))
-     null]))
+     (begin0 (block-state-check/advance state b-rule 'intro)
+       (for ([var (in-list vars)])
+         (when (memq var (in-scope))
+           (reject (err:intro-not-fresh var))))
+       (in-scope (append vars (in-scope))))]
+    [(block rule lines)
+     (begin0 (block-state-check/advance state b-rule 'block)
+       (parameterize ((in-scope (in-scope))) ;; mutated by Intro
+         ;; Don't check how block ends, because that would interfere with
+         ;; (or at least complicate) checking partial proofs.
+         (check-block lines lenv rule)))]))
+
+(define (block-rule->state rule)
+  (case rule
+    [(forall) 'i-d*]
+    [(exists) 'i-a-d*]
+    [(implies) 'a-d*]
+    [(contradiction) 'a-d*]
+    [(top) 'd*]
+    [(#f) 'i/a-a*-d*]))
+
+;; BlockRule = #f | 'forall | 'exists | 'implies | 'contradiction
+;; BlockState = (cons BlockRE BlockRule)
+;; BlockRE =
+;; - 'i/a-a*-d*
+;; - 'i-a-d*
+;; - 'i-d*
+;; - 'a-d*
+;; - 'a*-d*
+;; - 'd*
+
+(define (block-state-check/advance state b-rule stype)
+  (match stype
+    ['intro
+     (define not-allowed "Intro statement is not allowed here.")
+     (match state
+       ['i/a-a*-d* 'a*-d*]
+       ['i-a-d* 'a-d*]
+       ['i-d* 'd*]
+       [_ (reject `(v ,not-allowed
+                      ,@(err:block-misplaced 'intro state b-rule)
+                      ,@(err:block-wanted state b-rule)))])]
+    ['assume
+     (define not-allowed "Assume statement is not allowed here.")
+     (match state
+       ['i/a-a*-d* 'a*-d*]
+       ['a-d* 'd*]
+       ['a*-d* 'a*-d*]
+       [_ (reject `(v ,not-allowed
+                      ,@(err:block-misplaced 'assume state b-rule)
+                      ,@(err:block-wanted state b-rule)))])]
+    [(or 'block 'derive)
+     (define not-allowed
+       (case stype
+         [(block) "Block statement is not allowed here."]
+         [(derive) "Derive statement is not allowed here."]))
+     (match state
+       [(or 'a*-d* 'd*) 'd*]
+       [_ (reject `(v ,not-allowed
+                      ,@(err:block-misplaced stype state b-rule)
+                      ,@(err:block-wanted state b-rule)))])]
+    ))
+
+(define (block-state->rule state)
+  (match state
+    ['forall "∀Intro"]
+    ['exists "∃Elim"]
+    ['implies "⇒Intro"]
+    ['contradiction "Contradiction"]))
+
+(define (err:block-misplaced stype state b-rule)
+  (match stype
+    ['intro
+     (cond [(memq b-rule '(top))
+            '("An Intro statement must be within a block.")]
+           [(memq b-rule '(#f forall exists))
+            '("An Intro statement must be the first statement of a block.")]
+           [else null])]
+    ['assume
+     (cond [(memq b-rule '(top))
+            '("An Assume statement must be within a block.")]
+           [else null])]
+    [_ null]))
+
+(define (err:block-wanted state b-rule)
+  (match state
+    ['i/a-a*-d*
+     (list `(p "Expected either an Intro statement or Assume statement here."))]
+    [(or 'i-a-d* 'i-d*)
+     (list `(p "A block for " ,(rich 'rule (block-state->rule b-rule))
+               " should have an Intro statement here."))]
+    ['a-d*
+     (list `(p "A block for " ,(rich 'rule (block-state->rule b-rule))
+               " should have an Assume statement here."))]
+    [(or 'a*-d* 'd*) null]))
 
 (define (n->nth n)
   (case n
@@ -974,7 +1056,7 @@
          [(assume p) p]
          [(derive p j) p]
          [(want _) (reject (err:ref-is-want r))]
-         [(block _) (reject (err:ref-is-block r))]
+         [(block _ _) (reject (err:ref-is-block r))]
          [_ (error* "internal error: bad proposition reference")])]))
   (define (getb r)
     (match r
@@ -1062,7 +1144,7 @@
      (define plast
        (match (and (pair? rest) (last rest))
          [(derive p _) p]
-         [(block _) (reject (err:block-ends-with-block b-ref))]
+         [(block _ _) (reject (err:block-ends-with-block b-ref))]
          [#f pa]))
      (define dprop (prop:implies pa plast))
      (unless (prop=? prop dprop)
@@ -1370,7 +1452,7 @@
 ;; discard Want lines, split into Intro{0,1}, Assume*, (Block/Derive)*
 (define (split-block b)
   (match b
-    [(block lines)
+    [(block _ lines)
      (define (not-want? v) (not (want? v)))
      (define stmts0 (filter not-want? (map line-s lines)))
      (define-values (intros rest1) (splitf-at stmts0 intro?))

@@ -57,7 +57,7 @@
 ;; check-statement
 
 (terr
- #:err #rx"Assume statement is not allowed here"
+ #:err #rx"Block statement is not allowed here"
  "1 Block 1.1 Block 1.2 Assume A")
 
 (terr
@@ -71,6 +71,17 @@
 (terr
  #:err #rx"already in scope" ;; Intro
  "1 Block 1.1 Intro x in A 1.2 Block 1.2.1 Intro x in B")
+
+(terr
+ #:err #rx"within a block"
+ "1 Intro x in A")
+
+(terr
+ #:err #rx"within a block"
+ "1 Assume A")
+
+
+
 
 ;; ----------------------------------------
 ;; check-derive
