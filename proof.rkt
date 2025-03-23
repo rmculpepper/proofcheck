@@ -312,7 +312,7 @@
      [() null]
      [(Line Proof) (cons $1 $2)]]
     [Line
-     [(LineNumber Statement NL) (line $1 $2)]]
+     [(LineNumber Statement MaybeNL) (line $1 $2)]]
 
     [MaybeNL
      [(NEWLINE) (void)]
@@ -321,7 +321,7 @@
      [(NEWLINE) (void)]]
 
     [AxiomDecl
-     [(AXIOM INTEGER COLON Prop NL)
+     [(AXIOM INTEGER COLON Prop MaybeNL)
       (axiom $2 $4)]]
 
     [LineNumber
