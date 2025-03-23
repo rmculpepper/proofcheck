@@ -48,6 +48,8 @@
   (LINENUMBER
    INTEGER
    IDENTIFIER
+   LCIDENTIFIER
+   UCIDENTIFIER
    OBJECTNAME
    ))
 
@@ -99,6 +101,11 @@
    ANDELIM-is-not-a-rule-name
 
    EQ
+   LT
+   GT
+   LE
+   GE
+
    PLUS
    MINUS
    TIMES
@@ -215,6 +222,13 @@
    ["IffElim" 'IFFELIM-is-not-a-rule-name]
 
    ["=" 'EQ]
+   [">" 'GT]
+   ["<" 'LT]
+   ["≥" 'GE]
+   ["≤" 'LE]
+   [">=" 'GE]
+   ["<=" 'LE]
+
    ["+" 'PLUS]
    ["-" 'MINUS]
    ["*" 'TIMES]
@@ -235,13 +249,16 @@
    [":->" 'MAPSTO]
    ["in" 'IN]
 
-   ["NN" (token-IDENTIFIER 'ℕ)]
+   ["NN" (token-UCIDENTIFIER 'ℕ)]
 
    [$N+ (token-INTEGER (string->number lexeme))]
    [(:: $N+ (:+ "." $N+) (:? "."))
     (token-LINENUMBER (map string->number (string-split lexeme "." #:trim? #t)))]
    [(:: $A (:* $AN))
-    (token-IDENTIFIER (string->symbol lexeme))]
+    (cond [(char-lower-case? (string-ref lexeme 0))
+           (token-LCIDENTIFIER (string->symbol lexeme))]
+          [else
+           (token-UCIDENTIFIER (string->symbol lexeme))])]
    ))
 
 (define (base:string->lines s)
@@ -268,15 +285,16 @@
    (end EOF)
    (error parser-error)
    (src-pos)
-   (expected-SR-conflicts 8)
+   #;(debug "proof.grammar")
 
-   (precs (left OR)
+   (precs (nonassoc COMMA)
+          (left OR)
           (right IMPLIES)
           (nonassoc IFF)
           (left AND)
           (left NOT)
 
-          (right EQ)
+          (right EQ LT LE GT GE)
           (left PLUS MINUS)
           (left TIMES))
    (grammar
@@ -294,14 +312,16 @@
      [() null]
      [(Line Proof) (cons $1 $2)]]
     [Line
-     [(LineNumber Statement MaybeNL) (line $1 $2)]]
+     [(LineNumber Statement NL) (line $1 $2)]]
 
     [MaybeNL
      [(NEWLINE) (void)]
      [() (void)]]
+    [NL
+     [(NEWLINE) (void)]]
 
     [AxiomDecl
-     [(AXIOM INTEGER COLON Prop MaybeNL)
+     [(AXIOM INTEGER COLON Prop NL)
       (axiom $2 $4)]]
 
     [LineNumber
@@ -319,7 +339,7 @@
       (assume $2)]
      [(WANT Prop)
       (want $2)]
-     [(INTRO Variable+ IN IDENTIFIER)
+     [(INTRO Variable+ IN Set)
       (intro $2 $4)]]
 
     [MaybeFor
@@ -410,12 +430,19 @@
 
      [(Expr EQ Expr)
       (prop:eq $1 $3)]
-     [(IDENTIFIER LP Expr+ RP)
+     [(Expr GT Expr)
+      (prop:cmp 'gt $1 $3)]
+     [(Expr LT Expr)
+      (prop:cmp 'lt $1 $3)]
+     [(Expr GE Expr)
+      (prop:cmp 'ge $1 $3)]
+     [(Expr LE Expr)
+      (prop:cmp 'le $1 $3)]
+     [(UCIDENTIFIER LP Expr+ RP)
       (prop:pred $1 $3)]
-     #;
      [(Expr IN Set)
       (prop:in $1 $3)]
-     [(IDENTIFIER)
+     [(UCIDENTIFIER)
       (prop:atomic $1)]]
 
     [Expr
@@ -423,25 +450,26 @@
       (expr:integer $1)]
      [(OBJECTNAME)
       (expr:object $1)]
-     [(IDENTIFIER)
+     [(LCIDENTIFIER)
       (expr:var $1)]
      [(Expr PLUS Expr)
       (expr:plus $1 $3)]
      [(Expr TIMES Expr)
       (expr:times $1 $3)]
-     [(IDENTIFIER LP Expr+ RP)
+     [(LCIDENTIFIER LP Expr+ RP)
       (expr:apply $1 $3)]
      [(LP Expr RP)
       $2]]
 
     [Set
-     [(IDENTIFIER) $1]]
+     [(LCIDENTIFIER) $1]
+     [(UCIDENTIFIER) $1]]
 
     [Variable+
      [(Variable) (list $1)]
      [(Variable COMMA Variable+) (cons $1 $3)]]
     [Variable
-     [(IDENTIFIER) $1]]
+     [(LCIDENTIFIER) $1]]
 
     [Expr+
      [(Expr) (list $1)]
@@ -477,6 +505,7 @@
 (struct prop:atomic (a) #:prefab)
 
 (struct prop:eq (a b) #:prefab)
+(struct prop:cmp (cmp a b) #:prefab)
 (struct prop:pred (pred args) #:prefab)
 (struct prop:in (e s) #:prefab)
 
@@ -526,10 +555,14 @@
       [(prop:exists vs s p) (format "(∃ ~a ∈ ~a, ~a)" (vars->string vs #t) s (loop p))]
       [(prop:atomic a) (format "~a" a)]
       [(prop:eq a b) (format "(~a = ~a)" (expr->string a) (expr->string b))]
+      [(prop:cmp cmp a b) (format "(~a ~a ~a)" (expr->string a) (cmp->string cmp) (expr->string b))]
       [(prop:pred pred args)
        (format "~a(~a)" pred (string-join (map expr->string args) ", "))]
       [(prop:in e s) (format "(~a ∈ ~a)" (expr->string e) s)]
       [_ (error 'prop->string "internal error: bad prop: ~e" p)])))
+
+(define (cmp->string cmp)
+  (case cmp [(gt) ">"] [(ge) "≥"] [(lt) "<"] [(le) "≤"]))
 
 (define (expr->string e)
   (match e
@@ -565,6 +598,7 @@
        (binder-subst prop:exists vs s body vm vmfv)]
       [(prop:atomic a) p]
       [(prop:eq a b) (prop:eq (expr-subst a vm vmfv) (expr-subst b vm vmfv))]
+      [(prop:cmp cmp a b) (prop:cmp cmp (expr-subst a vm vmfv) (expr-subst b vm vmfv))]
       [(prop:pred pred args)
        (prop:pred pred (for/list ([arg (in-list args)]) (expr-subst arg vm vmfv)))]
       [(prop:in e s) (prop:in (expr-subst e vm vmfv) s)]
@@ -606,6 +640,7 @@
       [(prop:exists vs s body) (remove* vs (loop body))]
       [(prop:atomic a) null]
       [(prop:eq a b) (append (expr-fvs a env) (expr-fvs b env))]
+      [(prop:cmp cmp a b) (append (expr-fvs a env) (expr-fvs b env))]
       [(prop:pred pred args) (exprs-fvs args env)]
       [(prop:in e s) (expr-fvs e env)]
       [_ (error 'prop-fvs "internal error: bad prop: ~e" p)])))
@@ -1411,8 +1446,7 @@
     [(prop:and p q) (and (prop-algebra-can-derive? p)
                          (prop-algebra-can-derive? q))]
     [(prop:eq _ _) #t]
-    [(prop:pred 'lt (list _ _)) #t]
-    [(prop:pred 'le (list _ _)) #t]
+    [(prop:cmp _ _ _) #t]
     [_ #f]))
 
 (define (prop-same-logic? a b)
@@ -1438,6 +1472,7 @@
       [[(prop:atomic a) (prop:atomic b)]
        (equal? a b)]
       [[(? prop:eq?) (? prop:eq?)] #t]
+      [[(? prop:cmp?) (? prop:cmp?)] #t]
       [[(? prop:pred?) (? prop:pred?)] #t]
       [[(? prop:in?) (? prop:in?)] #t]
       [[_ _] #f])))
