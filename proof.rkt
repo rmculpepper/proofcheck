@@ -144,10 +144,7 @@
    [$LWS+ (return-without-pos (lex input-port))]
    [$NL+ 'NEWLINE]
    [(:: "//" (:* (:~ $NL))) (return-without-pos (lex input-port))]
-   #;
-   ["//" (begin (void (read-line input-port))
-                'NEWLINE
-                #;(return-without-pos (lex input-port)))]
+   #;["//" (begin (void (read-line input-port)) 'NEWLINE)]
    [(:: "'" $A (:+ $AN) "'")
     (token-OBJECTNAME (let ([s lexeme]) (substring s 1 (sub1 (string-length s)))))]
 
