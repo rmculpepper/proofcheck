@@ -40,7 +40,7 @@
                  (begin0 t-nl (set! peeked (list t-la)))]
                 [t-la t-la])]
              [(and next (position-token (app token-name tname) _ _))
-              (when (memq tname '(ASSUME BLOCK DERIVE INTRO WANT))
+              (when (memq tname '(ASSUME BLOCK DERIVE LET WANT))
                 (set! proof-started? #t))
               next])])))
 
@@ -62,10 +62,11 @@
 
    DERIVE
    BLOCK
-   INTRO
+   LET
    ASSUME
    WANT
    AXIOM
+   DECLARE
 
    NOT
    OR
@@ -76,6 +77,8 @@
    FORALL
    EXISTS
 
+   INTRO
+   ELIM
    ANDINTRO
    ANDELIML
    ANDELIMR
@@ -154,10 +157,11 @@
 
    ["Derive" 'DERIVE]
    ["Block" 'BLOCK]
-   ["Intro" 'INTRO]
+   ["Let" 'LET]
    ["Assume" 'ASSUME]
    ["Want" 'WANT]
    ["Axiom" 'AXIOM]
+   ["Declare" 'DECLARE]
 
    ["¬" 'NOT]
    ["∧" 'AND]
@@ -174,6 +178,9 @@
    ["implies" 'IMPLIES]
    ["forall" 'FORALL]
    ["exists" 'EXISTS]
+
+   ["Intro" 'INTRO]
+   ["Elim" 'ELIM]
 
    ["∧Intro" 'ANDINTRO]
    ["∧ElimL" 'ANDELIML]
@@ -242,9 +249,7 @@
    ["on" 'ON]
    ["with" 'WITH]
    ["forward" 'FORWARD]
-   ["fwd" 'FORWARD]
    ["backward" 'BACKWARD]
-   ["bwd" 'BACKWARD]
 
    [":->" 'MAPSTO]
    ["in" 'IN]
@@ -333,17 +338,18 @@
     [Statement
      [(DERIVE Prop Justification)
       (derive $2 $3)]
-     [(BLOCK MaybeFor)
+     [(BLOCK BlockFor)
       (block $2 #f)]
      [(ASSUME Prop)
       (assume $2)]
      [(WANT Prop)
       (want $2)]
-     [(INTRO Variable+ IN Set)
+     [(LET Variable+ IN Set)
       (intro $2 $4)]]
 
-    [MaybeFor
-     [() #f]
+    [BlockFor
+     #;[() #f]
+     [(FOR INTRO) #f]
      [(FOR FORALLINTRO) 'forall]
      [(FOR IMPINTRO) 'implies]
      [(FOR EXISTSELIM) 'exists]
@@ -370,16 +376,16 @@
      [(BY MODUSTOLLENS OnClause) (apply-on "ModusTollens" 2 $3 j:ModusTollens)]
      [(BY DISJSYLLOGISM OnClause) (apply-on "DisjunctiveSyllogism" 2 $3 j:DisjSyl)]
      [(BY CONTRADICTION OnClause) (apply-on "Contradiction" 1 $3 j:Contradiction)]
-     [(BY PRef SEMICOLON MaybeVarMap MaybeDirection ON PRef+)
-      (j:elim $2 $4 $5 $7)]
-     [(BY BRef)
+     [(BY PRef MaybeVarMap MaybeDirection ON PRef+)
+      (j:elim $2 $3 $4 $6)]
+     [(BY INTRO ON BRef)
       (j:intro $2)]]
 
     [MaybeVarMap
-     [(WITH VarMap SEMICOLON) $2]
+     [(WITH VarMap) $2]
      [() #f]]
     [MaybeDirection
-     [(Direction SEMICOLON) $1]
+     [(Direction) $1]
      [() #f]]
     [OnClause
      [(ON PRef+) (cons (cons $n-start-pos $n-end-pos) $2)]]
@@ -403,9 +409,7 @@
         (map cons vars exprs))]]
     [Direction
      [(FORWARD) 'forward]
-     [(IMPLIES) 'forward]
-     [(BACKWARD) 'backward]
-     [(LEFTARROW) 'backward]]
+     [(BACKWARD) 'backward]]
 
     [PRef+
      [(PRef) (list $1)]
@@ -795,7 +799,7 @@
       (h "Free variables: " ,(rich 'vars fvs))))
 
 (define (err:intro-not-fresh var)
-  `(v "Intro statement introduces a variable that is already in scope."
+  `(v "Let statement introduces a variable that is already in scope."
       (h "Variable: " ,(rich 'var var))))
 
 (define (err:ref-line-unavail ln)
@@ -830,13 +834,13 @@
       (h "Variable mapping's variables: " ,(rich 'vars vm-vars))))
 
 (define (err:block-need-intro ref)
-  `(v (p "The rule requires the block to start with an Intro statement,"
-         "but the given block has no Intro statement.")
+  `(v (p "The rule requires the block to start with an Let statement,"
+         "but the given block has no Let statement.")
       (h "Block: " ,(rich 'block-ref ref))))
 
 (define (err:block-unwanted-intro ref)
-  `(v (p "The rule does not allow the block to have an Intro statement,"
-         "but the given block starts with an Intro statement.")
+  `(v (p "The rule does not allow the block to have an Let statement,"
+         "but the given block starts with an Let statement.")
       (h "Block: " ,(rich 'block-ref ref))))
 
 (define (err:block-need-one-assume ref n-assumes)
@@ -977,7 +981,7 @@
 (define (block-state-check/advance state b-rule stype)
   (match stype
     ['intro
-     (define not-allowed "Intro statement is not allowed here.")
+     (define not-allowed "Let statement is not allowed here.")
      (match state
        ['i/a-a*-d* 'a*-d*]
        ['i-a-d* 'a-d*]
@@ -1017,9 +1021,9 @@
   (match stype
     ['intro
      (cond [(memq b-rule '(top))
-            '("An Intro statement must be within a block.")]
+            '("A Let statement must be within a block.")]
            [(memq b-rule '(#f forall exists))
-            '("An Intro statement must be the first statement of a block.")]
+            '("A Let statement must be the first statement of a block.")]
            [else null])]
     ['assume
      (cond [(memq b-rule '(top))
@@ -1030,10 +1034,10 @@
 (define (err:block-wanted state b-rule)
   (match state
     ['i/a-a*-d*
-     (list `(p "Expected either an Intro statement or Assume statement here."))]
+     (list `(p "Expected either an Let statement or Assume statement here."))]
     [(or 'i-a-d* 'i-d*)
      (list `(p "A block for " ,(rich 'rule (block-state->rule b-rule))
-               " should have an Intro statement here."))]
+               " should have an Let statement here."))]
     ['a-d*
      (list `(p "A block for " ,(rich 'rule (block-state->rule b-rule))
                " should have an Assume statement here."))]
@@ -1484,7 +1488,7 @@
          (prop=? q (prop:not p)))]
     [_ #f]))
 
-;; discard Want lines, split into Intro{0,1}, Assume*, (Block/Derive)*
+;; discard Want lines, split into Let{0,1}, Assume*, (Block/Derive)*
 (define (split-block b)
   (match b
     [(block _ lines)
