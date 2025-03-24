@@ -71,7 +71,7 @@ Axiom 11: ∀ n,d,q1,r1,q2,r2 ∈ NN, Div(n,d,q1,r1) ⇒ Div(n,d,q2,r2) ⇒ (q1 
                  `(v "OK."
                      (h "Proven: " ,(rich 'prop dprop)))]
                 [else
-                 `(p "OK. No errors found, but the proof is incomplete, because"
+                 `(p "No errors found, but the proof is incomplete, because"
                      "the main list does not end with a Derive statement.")]))
         (define text (rich-text->string msg))
         (define html (xexpr->string ((rich-text->xexpr wrap-div) msg)))

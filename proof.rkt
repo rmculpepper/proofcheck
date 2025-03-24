@@ -11,39 +11,6 @@
          (prefix-in : parser-tools/lex-sre))
 (provide (all-defined-out))
 
-(define (tokenize get-token)
-  (let loop ()
-    (define next (get-token))
-    (if (eq? next 'EOF) null (cons next (loop)))))
-
-(define (string->tokens lex s)
-  (define in (open-input-string s))
-  (port-count-lines! in)
-  (define (get-token) (lex in))
-  (tokenize get-token))
-
-(define (wrap-get-token get)
-  ;; Once proof has started, drop NEWLINE token
-  ;; except before LINENUMBER, or INTEGER.
-  (define proof-started? #f)
-  (define peeked null)
-  (lambda ()
-    (cond [(pair? peeked)
-           (begin0 (car peeked)
-             (set! peeked (cdr peeked)))]
-          [else
-           (match (get)
-             [(and t-nl (position-token 'NEWLINE start end))
-              (match (get)
-                [(and t-la (position-token (app token-name aname) _ _))
-                 #:when (and proof-started? (memq aname '(LINENUMBER INTEGER)))
-                 (begin0 t-nl (set! peeked (list t-la)))]
-                [t-la t-la])]
-             [(and next (position-token (app token-name tname) _ _))
-              (when (memq tname '(ASSUME BLOCK DERIVE LET WANT))
-                (set! proof-started? #t))
-              next])])))
-
 (define-tokens tokens1
   (LINENUMBER
    INTEGER
@@ -262,29 +229,106 @@
            (token-IDENTIFIER (string->symbol lexeme))])]
    ))
 
-(define (base:string->lines s)
+;; ----------------------------------------
+
+(define-match-expander token
+  (lambda (stx)
+    (syntax-case stx ()
+      [(_ name) #'(? position-token? (app token-name* name))]
+      [(_ name value) #'(? position-token? (app token-name* name) (app token-value* value))])))
+(define (token-name* tok) (token-name (position-token-token tok)))
+(define (token-value* tok) (token-name (position-token-token tok)))
+
+(define (string->tokens s)
   (define in (open-input-string s))
   (port-count-lines! in)
-  (base:parse (wrap-get-token (lambda () (lex in)))))
+  (let loop ()
+    (define next (lex in))
+    (if (eq? (token-name* next) 'EOF) (list next) (cons next (loop)))))
 
-(define (parser-error tok-ok? tok-name tok-value start end #:stack se)
-  (error 'parser
-         (string-append
-          "Unexpected token: ~a~a."
-          "\nPosition: ~s:~s to ~s:~s."
-          #;"\nParser state = ~v.")
-         tok-name
-         (if tok-value (format ", ~e" tok-value) "")
-         (position-line start) (position-col start)
-         (position-line end) (position-col end)
-         #;se))
+(define ((tokens->lex toks))
+  (begin0 (car toks)
+    (when (pair? (cdr toks)) (set! toks (cdr toks)))))
 
-(define base:parse
+;; ----------------------------------------
+
+;; tokens->lines : (Listof Token) -> (Listof (Listof Token))
+;; Split on NEWLINE except before BY; retain NEWLINE/EOF.
+(define (tokens->lines toks)
+  (define (loop toks acc)
+    (match toks
+      [(list* (token 'NEWLINE) (and toks (list* (token 'BY) _)))
+       (loop toks acc)]
+      [(list* (and tok (token 'NEWLINE)) toks)
+       (values (reverse (cons tok acc)) toks)]
+      [(list (and tok (token 'EOF)))
+       (values (reverse (cons tok acc)) null)]
+      [(list* tok toks)
+       (loop toks (cons tok acc))]))
+  (cond [(pair? toks)
+         (define-values (line toks*) (loop toks null))
+         (cons line (tokens->lines toks*))]
+        [else null]))
+
+(struct bad-line (rt) #:prefab)
+
+(define (parse-line toks)
+  (match toks
+    [(list* (token 'AXIOM) _)
+     (parse-line* toks)]
+    [(list* (and tok (token 'INTEGER)) toks)
+     (parse-proof-line tok toks)]
+    [(list* (and tok (token 'LINENUMBER)) toks)
+     (parse-proof-line tok toks)]
+    [(list (token 'NEWLINE))
+     #f]
+    [(list (token 'EOF))
+     #f]
+    [toks
+     (bad-line "FIXME")]))
+
+(define (parse-proof-line ln-tok toks)
+  (match toks
+    [(list* (and tok (token 'DERIVE)) toks)
+     (parse-derive-line ln-tok tok toks)]
+    [(list* (token name) _)
+     #:when (memq name '(ASSUME BLOCK LET WANT))
+     (parse-line* (cons ln-tok toks))]
+    [_ (bad-line "FIXME")]))
+
+(define (parse-derive-line ln-tok derive-tok toks)
+  (parse-line* (list* ln-tok derive-tok toks)))
+#;
+(define (parse-derive-line ln-tok derive-tok toks)
+  (define by-index (index-where toks (lambda (tok) (eq? (token-name* tok) 'BY))))
+  (cond [by-index
+         (define-values (prop-toks just-toks) ;; BY token goes to prop-toks
+           (split-at toks (add1 by-index)))
+         (define prop (with-handlers ([misparse?
+                                       (lambda (mp)
+                                         __)])
+                        (parse-prop prop-toks)))
+         (define just (with-handlers ([misparse?
+                                       (lambda (mp)
+                                         __)])
+                        (parse-justification just-toks)))
+         __]
+        [else
+         (bad-line "FIXME")]))
+
+(define (parse-line* toks)
+  (with-handlers ([misparse?
+                   (lambda (mp)
+                     #;(bad-line "FIXME")
+                     (raise-parser-error mp))])
+    (line-parser (tokens->lex toks))))
+
+(define line-parser
   (parser
    (tokens tokens0 tokens1)
-   (start Start)
-   (end EOF)
-   (error parser-error)
+   (start Line)
+   (end NEWLINE EOF)
+   (error (lambda (ok? name value start end) (raise (misparse ok? name value start end))))
    (src-pos)
    #;(debug "proof.grammar")
 
@@ -300,30 +344,17 @@
           (left TIMES))
    (grammar
 
-    [Start
-     [(NEWLINE Start) $2]
-     [(AxiomsProof) $1]]
-
-    [AxiomsProof
-     [(AxiomDecl AxiomsProof)
-      (cons $1 $2)]
-     [(Proof) $1]]
-
-    [Proof
-     [() null]
-     [(Line Proof) (cons $1 $2)]]
     [Line
-     [(LineNumber Statement MaybeNL) (line $1 $2)]]
-
-    [MaybeNL
-     [(NEWLINE) (void)]
-     [() (void)]]
-    [NL
-     [(NEWLINE) (void)]]
+     [(AxiomDecl) $1]
+     [(ProofLine) $1]]
 
     [AxiomDecl
-     [(AXIOM INTEGER COLON Prop MaybeNL)
+     [(AXIOM INTEGER COLON Prop)
       (axiom $2 $4)]]
+
+    [ProofLine
+     [(LineNumber Statement)
+      (line $1 $2)]]
 
     [LineNumber
      [(INTEGER)
@@ -475,6 +506,27 @@
      [(Expr) (list $1)]
      [(Expr COMMA Expr+) (cons $1 $3)]]
     )))
+
+(struct misparse (ok? name value start end) #:prefab)
+
+(define (raise-parser-error mp)
+  (match mp
+    [(misparse ok? name value start end)
+     (error 'parser
+            (string-append
+             "Unexpected token: ~a~a."
+             "\nPosition: ~s:~s to ~s:~s.")
+            name
+            (if value (format ", ~e" value) "")
+            (position-line start) (position-col start)
+            (position-line end) (position-col end))]))
+
+(define (base:string->lines s)
+  (define toks (string->tokens s))
+  (define prelines (tokens->lines toks))
+  (filter values (map parse-line prelines)))
+
+;; ----------------------------------------
 
 (define (apply-on rule n-on on-args0 f . args)
   (match-define (cons srcpair on-args) on-args0)
@@ -769,7 +821,7 @@
     [(rich 'rule s) s]))
 
 (define (err:line ln [stmt #f])
-  `(h "Error on line #" ,(rich 'lineno ln) ":"))
+  `(h "Error on line labeled #" ,(rich 'lineno ln) ":"))
 
 (define (err:rule just)
   `(h "Incorrect use of " ,(rich 'rule (justification-rule-name just))))
