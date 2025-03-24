@@ -169,22 +169,22 @@
 
 ;; Forall Elim
 (tok "Axiom 1: forall a,b in N, R(a,b)
-1 Derive R(1,2) by ForAllElim on Axiom 1 with a,b :-> 1,2")
+1 Derive R(1,2) by ForAllElim on Axiom 1 with a,b := 1,2")
 (tok "Axiom 1: forall a,b in N, R(a,b)
-1 Derive forall b in N, R(1,b) by ForAllElim on Axiom 1 with a :-> 1")
+1 Derive forall b in N, R(1,b) by ForAllElim on Axiom 1 with a := 1")
 (terr "Axiom 1: forall a,b in N, R(a,b)
-1 Derive R(1,2) by ForAllElim on Axiom 1 with x,y :-> 1,2" #:err #rx"mapping must match")
+1 Derive R(1,2) by ForAllElim on Axiom 1 with x,y := 1,2" #:err #rx"mapping must match")
 (terr "Axiom 1: forall a,b in N, R(a,b)
-1 Derive R(1,2) by ForAllElim on Axiom 1 with x :-> 1" #:err #rx"mapping must match")
+1 Derive R(1,2) by ForAllElim on Axiom 1 with x := 1" #:err #rx"mapping must match")
 (terr "Axiom 1: forall n in N, R(n)
-1 Derive R(x) by ForAllElim on Axiom 1 with n :-> x" #:err #rx"not in scope")
+1 Derive R(x) by ForAllElim on Axiom 1 with n := x" #:err #rx"not in scope")
 (terr "Axiom 1: forall n in N, R(n)
-1 Derive R(99) by ForAllElim on Axiom 1 with n :-> 1" #:err (badr))
+1 Derive R(99) by ForAllElim on Axiom 1 with n := 1" #:err (badr))
 ;; FIXME: handle one vm for multiple explicit foralls!
 
 ;; Forall Intro
 (tok "Axiom 102: ∀ x ∈ X, R(x)
-1 Block \n 1.1 Let a in X \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x :-> a
+1 Block \n 1.1 Let a in X \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x := a
 2 Derive forall a in X, R(a) by ForAllIntro on #1")
 
 (terr "1 Block \n 1.1 Assume A
@@ -194,7 +194,7 @@
 (terr "1 Block \n 1.1 Let x in S \n 1.2 Block
 2 Derive forall x in S, A by ForAllIntro on #1" #:err #rx"end with a Derive")
 (terr "Axiom 102: ∀ x ∈ X, R(x)
-1 Block \n 1.1 Let a in X \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x :-> a
+1 Block \n 1.1 Let a in X \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x := a
 2 Derive forall a in X, C by ForAllIntro on #1" #:err (badr))
 
 ;; Exists Elim
@@ -203,7 +203,7 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 1 Block
   1.1 Let m in NN
   1.2 Assume GE(m, 0)
-  1.3 Derive Z(0) by Axiom 2 with n :-> m on #1.2
+  1.3 Derive Z(0) by Axiom 2 with n := m on #1.2
 2 Derive Z(0) by ExistsElim on Axiom 1, #1")
 
 (terr "Axiom 1: exists n in NN, GE(n, 0)
@@ -235,7 +235,7 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 1 Block
   1.1 Let m in NN
   1.2 Assume GE(m, 0)
-  1.3 Derive Z(0) by Axiom 2 with n :-> m on #1.2
+  1.3 Derive Z(0) by Axiom 2 with n := m on #1.2
   1.4 Block
 2 Derive Z(0) by ExistsElim on Axiom 1, #1"
       #:err #rx"end with a Derive")
@@ -254,37 +254,37 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 1 Block
   1.1 Let m in NN
   1.2 Assume GE(m, 0)
-  1.3 Derive Z(0) by Axiom 2 with n :-> m on #1.2
+  1.3 Derive Z(0) by Axiom 2 with n := m on #1.2
 2 Derive X by ExistsElim on Axiom 1, #1"
       #:err (badr))
 
 ;; Exists Intro
 (tok "Axiom 1: LE(1,2)
-1 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with a :-> 1")
+1 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with a := 1")
 
-(terr "Axiom 1: LE(1,2) \n 1 Derive A by ExistsIntro on Axiom 1 with a :-> 1" #:err (badr))
+(terr "Axiom 1: LE(1,2) \n 1 Derive A by ExistsIntro on Axiom 1 with a := 1" #:err (badr))
 (terr "Axiom 1: LE(1,2) \n 1 Block \n 1.1 Let a in NN
-1.2 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with a :-> 1"
+1.2 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with a := 1"
       #:err #rx"already in scope")
 (terr "Axiom 1: LE(1,2)
-1 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with x :-> 1"
+1 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with x := 1"
       #:err #rx"variable mapping")
 (terr "Axiom 1: LE(1,2)
-1 Derive exists a in NN, LE(a,99) by ExistsIntro on Axiom 1 with a :-> 1"
+1 Derive exists a in NN, LE(a,99) by ExistsIntro on Axiom 1 with a := 1"
       #:err (badarg))
 
 ;; Relaxed Elimination
 (tok "Axiom 1: forall a,b,c in NN, R(a,b) implies R(b,c) implies R(a,c)
 Axiom 2: R(1,2) \n Axiom 3: R(2,3)
-1 Derive R(1,3) by Axiom 1 with a,b,c :-> 1,2,3 on Axiom 2, Axiom 3")
+1 Derive R(1,3) by Axiom 1 with a,b,c := 1,2,3 on Axiom 2, Axiom 3")
 
 (tok "Axiom 1: forall a,b in NN, LE(a,b) iff GE(b,a)
 Axiom 2: LE(1,2)
-1 Derive GE(2,1) by Axiom 1 with a,b :-> 1,2 forward on Axiom 2")
+1 Derive GE(2,1) by Axiom 1 with a,b := 1,2 forward on Axiom 2")
 
 (tok "Axiom 1: forall a,b in NN, LE(a,b) iff GE(b,a)
 Axiom 2: GE(2,1)
-1 Derive LE(1,2) by Axiom 1 with a,b :-> 1,2 backward on Axiom 2")
+1 Derive LE(1,2) by Axiom 1 with a,b := 1,2 backward on Axiom 2")
 
 ;; FIXME: error tests
 
