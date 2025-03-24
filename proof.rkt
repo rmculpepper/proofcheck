@@ -317,18 +317,37 @@
          (bad-line "FIXME")]))
 
 (define (parse-line* toks)
-  (with-handlers ([misparse?
-                   (lambda (mp)
-                     #;(bad-line "FIXME")
-                     (raise-parser-error mp))])
-    (line-parser (tokens->lex toks))))
+  (line-parser (tokens->lex toks)))
+
+(define (raise-parser-error ok? name value start end)
+  (reject `(v (h "Syntax error")
+              (h "Unexpected token: "
+                 ,(rich 'program-text
+                        (cond [(memq name '(EOF NEWLINE))
+                               " "]
+                              [else
+                               (bytes->string/utf-8
+                                (subbytes (current-program-text)
+                                          (sub1 (position-offset start))
+                                          (sub1 (position-offset end))))]))
+                 " ("
+                 ,(rich 'token-name name)
+                 ;; ,@(if value
+                 ;;       `(", " ,(rich 'token-value value))
+                 ;;       '())
+                 ")")
+              (h "Position: "
+                 ,(rich 'srcpair (cons start end)))
+              ,@(cond [(memq name '(EOF NEWLINE))
+                       `((p "The line is incomplete."))]
+                      [else '()]))))
 
 (define line-parser
   (parser
    (tokens tokens0 tokens1)
    (start Line)
    (end NEWLINE EOF)
-   (error (lambda (ok? name value start end) (raise (misparse ok? name value start end))))
+   (error raise-parser-error)
    (src-pos)
    #;(debug "proof.grammar")
 
@@ -507,24 +526,13 @@
      [(Expr COMMA Expr+) (cons $1 $3)]]
     )))
 
-(struct misparse (ok? name value start end) #:prefab)
-
-(define (raise-parser-error mp)
-  (match mp
-    [(misparse ok? name value start end)
-     (error 'parser
-            (string-append
-             "Unexpected token: ~a~a."
-             "\nPosition: ~s:~s to ~s:~s.")
-            name
-            (if value (format ", ~e" value) "")
-            (position-line start) (position-col start)
-            (position-line end) (position-col end))]))
+(define current-program-text (make-parameter #f))
 
 (define (base:string->lines s)
-  (define toks (string->tokens s))
-  (define prelines (tokens->lines toks))
-  (filter values (map parse-line prelines)))
+  (parameterize ((current-program-text (string->bytes/utf-8 s)))
+    (define toks (string->tokens s))
+    (define prelines (tokens->lines toks))
+    (filter values (map parse-line prelines))))
 
 ;; ----------------------------------------
 
@@ -803,6 +811,9 @@
 
 (define (rich->string r)
   (match r
+    [(rich 'token-name name) (format "~a" name)]
+    [(rich 'token-value value) (format "~a" value)]
+    [(rich 'program-text value) (format "~a" value)]
     [(rich 'lineno ln) (lineno->string ln)]
     [(rich 'prop p) (prop->string p)]
     [(rich 'expr e) (expr->string e)]

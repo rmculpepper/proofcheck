@@ -93,6 +93,9 @@ Axiom 11: ∀ n,d,q1,r1,q2,r2 ∈ NN, Div(n,d,q1,r1) ⇒ Div(n,d,q2,r2) ⇒ (q1 
 (define (rich->xexpr r)
   (define (text) (rich->string r))
   (match r
+    [(rich 'token-name name) `(span ([class "r_token_name"]) ,(text))]
+    [(rich 'token-value value) `(span ([class "r_token_value"]) ,(text))]
+    [(rich 'program-text value) `(span ([class "r_program_text"]) ,(text))]
     [(rich 'lineno ln) `(span ([class "r_lineno"]) ,(text))]
     [(rich 'prop p) `(span ([class "r_prop"]) ,(text))]
     [(rich 'expr e) `(span ([class "r_expr"]) ,(text))]

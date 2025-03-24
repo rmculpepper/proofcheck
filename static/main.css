@@ -114,6 +114,22 @@ p, .par {
     font-weight: bold;
 }
 
+.r_program_text {
+    color: black;
+    background-color: lightgray;
+    padding: 2px;
+    font-family: monospace, monospace;
+}
+.r_token_name {
+    color: darkblue;
+    font-weight: bold;
+    font-family: monospace, monospace;
+}
+.r_token_value {
+    color: darkblue;
+    font-family: monospace, monospace;
+}
+
 /* ---------------------------------------- */
 .form_inputs {
     display: table;
