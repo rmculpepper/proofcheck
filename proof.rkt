@@ -53,7 +53,7 @@
    OBJECTNAME
    ))
 
-(define-tokens tokens0
+(define-empty-tokens tokens0
   (EOF
    NEWLINE
    LP
@@ -379,7 +379,7 @@
      [(BY PRef MaybeVarMap MaybeDirection ON PRef+)
       (j:elim $2 $3 $4 $6)]
      [(BY INTRO ON BRef)
-      (j:intro $2)]]
+      (j:intro $4)]]
 
     [MaybeVarMap
      [(WITH VarMap) $2]
@@ -834,13 +834,13 @@
       (h "Variable mapping's variables: " ,(rich 'vars vm-vars))))
 
 (define (err:block-need-intro ref)
-  `(v (p "The rule requires the block to start with an Let statement,"
+  `(v (p "The rule requires the block to start with a Let statement,"
          "but the given block has no Let statement.")
       (h "Block: " ,(rich 'block-ref ref))))
 
 (define (err:block-unwanted-intro ref)
-  `(v (p "The rule does not allow the block to have an Let statement,"
-         "but the given block starts with an Let statement.")
+  `(v (p "The rule does not allow the block to have a Let statement,"
+         "but the given block starts with a Let statement.")
       (h "Block: " ,(rich 'block-ref ref))))
 
 (define (err:block-need-one-assume ref n-assumes)
@@ -1034,10 +1034,10 @@
 (define (err:block-wanted state b-rule)
   (match state
     ['i/a-a*-d*
-     (list `(p "Expected either an Let statement or Assume statement here."))]
+     (list `(p "Expected either a Let statement or Assume statement here."))]
     [(or 'i-a-d* 'i-d*)
      (list `(p "A block for " ,(rich 'rule (block-state->rule b-rule))
-               " should have an Let statement here."))]
+               " should have a Let statement here."))]
     ['a-d*
      (list `(p "A block for " ,(rich 'rule (block-state->rule b-rule))
                " should have an Assume statement here."))]

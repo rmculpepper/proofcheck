@@ -205,7 +205,7 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 1 Block
   1.1 Let m in NN
   1.2 Assume GE(m, 0)
-  1.3 Derive Z(0) by Axiom 2; with n :-> m; on #1.2
+  1.3 Derive Z(0) by Axiom 2 with n :-> m on #1.2
 2 Derive Z(0) by ExistsElim on Axiom 1, #1")
 
 (terr "Axiom 1: exists n in NN, GE(n, 0)
@@ -237,7 +237,7 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 1 Block
   1.1 Let m in NN
   1.2 Assume GE(m, 0)
-  1.3 Derive Z(0) by Axiom 2; with n :-> m; on #1.2
+  1.3 Derive Z(0) by Axiom 2 with n :-> m on #1.2
   1.4 Block
 2 Derive Z(0) by ExistsElim on Axiom 1, #1"
       #:err #rx"end with a Derive")
@@ -256,7 +256,7 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 1 Block
   1.1 Let m in NN
   1.2 Assume GE(m, 0)
-  1.3 Derive Z(0) by Axiom 2; with n :-> m; on #1.2
+  1.3 Derive Z(0) by Axiom 2 with n :-> m on #1.2
 2 Derive X by ExistsElim on Axiom 1, #1"
       #:err (badr))
 
@@ -278,28 +278,28 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 ;; Relaxed Elimination
 (tok "Axiom 1: forall a,b,c in NN, R(a,b) implies R(b,c) implies R(a,c)
 Axiom 2: R(1,2) Axiom 3: R(2,3)
-1 Derive R(1,3) by Axiom 1; with a,b,c :-> 1,2,3; on Axiom 2, Axiom 3")
+1 Derive R(1,3) by Axiom 1 with a,b,c :-> 1,2,3 on Axiom 2, Axiom 3")
 
 (tok "Axiom 1: forall a,b in NN, LE(a,b) iff GE(b,a)
 Axiom 2: LE(1,2)
-1 Derive GE(2,1) by Axiom 1; with a,b :-> 1,2; forward; on Axiom 2")
+1 Derive GE(2,1) by Axiom 1 with a,b :-> 1,2 forward on Axiom 2")
 
 (tok "Axiom 1: forall a,b in NN, LE(a,b) iff GE(b,a)
 Axiom 2: GE(2,1)
-1 Derive LE(1,2) by Axiom 1; with a,b :-> 1,2; backward; on Axiom 2")
+1 Derive LE(1,2) by Axiom 1 with a,b :-> 1,2 backward on Axiom 2")
 
 ;; FIXME: error tests
 
 ;; Relaxed Introduction
 (tok "Axiom 1: A and B
 1 Block 1.1 Let x,y in NN 1.2 Assume LE(x,y) 1.3 Derive A by AndElimL on Axiom 1
-2 Derive forall x,y in NN, LE(x,y) implies A by #1")
+2 Derive forall x,y in NN, LE(x,y) implies A by Intro on #1")
 (tok "Axiom 1: A and B
 1 Block 1.1 Assume C 1.2 Derive A by AndElimL on Axiom 1
-2 Derive C implies A by #1")
+2 Derive C implies A by Intro on #1")
 (tok "Axiom 1: A and B
 1 Block 1.1 Let x,y in NN 1.2 Derive A by AndElimL on Axiom 1
-2 Derive forall x,y in NN, A by #1")
+2 Derive forall x,y in NN, A by Intro on #1")
 
 ;; FIXME: error tests
 
