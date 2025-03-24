@@ -270,8 +270,16 @@
          (cons line (tokens->lines toks*))]
         [else null]))
 
-(struct bad-line (rt) #:prefab)
+(define (parse-line toks)
+  (match toks
+    [(list (token 'NEWLINE))
+     #f]
+    [(list (token 'EOF))
+     #f]
+    [_ (parse-line* toks)]))
 
+#|
+(struct bad-line (rt) #:prefab)
 (define (parse-line toks)
   (match toks
     [(list* (token 'AXIOM) _)
@@ -286,7 +294,6 @@
      #f]
     [toks
      (bad-line "FIXME")]))
-
 (define (parse-proof-line ln-tok toks)
   (match toks
     [(list* (and tok (token 'DERIVE)) toks)
@@ -295,7 +302,6 @@
      #:when (memq name '(ASSUME BLOCK LET WANT))
      (parse-line* (cons ln-tok toks))]
     [_ (bad-line "FIXME")]))
-
 (define (parse-derive-line ln-tok derive-tok toks)
   (parse-line* (list* ln-tok derive-tok toks)))
 #;
@@ -315,6 +321,7 @@
          __]
         [else
          (bad-line "FIXME")]))
+|#
 
 (define (parse-line* toks)
   (line-parser (tokens->lex toks)))
