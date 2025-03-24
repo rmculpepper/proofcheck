@@ -21,6 +21,8 @@
 
 (define-empty-tokens tokens0
   (EOF
+   End-of-Proposition
+   End-of-Justification
    NEWLINE
    LP
    RP
@@ -237,7 +239,7 @@
       [(_ name) #'(? position-token? (app token-name* name))]
       [(_ name value) #'(? position-token? (app token-name* name) (app token-value* value))])))
 (define (token-name* tok) (token-name (position-token-token tok)))
-(define (token-value* tok) (token-name (position-token-token tok)))
+(define (token-value* tok) (token-value (position-token-token tok)))
 
 (define (string->tokens s)
   (define in (open-input-string s))
@@ -270,6 +272,7 @@
          (cons line (tokens->lines toks*))]
         [else null]))
 
+#;
 (define (parse-line toks)
   (match toks
     [(list (token 'NEWLINE))
@@ -278,8 +281,6 @@
      #f]
     [_ (parse-line* toks)]))
 
-#|
-(struct bad-line (rt) #:prefab)
 (define (parse-line toks)
   (match toks
     [(list* (token 'AXIOM) _)
@@ -292,8 +293,11 @@
      #f]
     [(list (token 'EOF))
      #f]
-    [toks
-     (bad-line "FIXME")]))
+    [(list* tok _)
+     (raise-parser-error* tok
+                          `[(p "Expected either a line number or the word "
+                               ,(rich 'program-text "Axiom") ".")])]))
+
 (define (parse-proof-line ln-tok toks)
   (match toks
     [(list* (and tok (token 'DERIVE)) toks)
@@ -301,36 +305,55 @@
     [(list* (token name) _)
      #:when (memq name '(ASSUME BLOCK LET WANT))
      (parse-line* (cons ln-tok toks))]
-    [_ (bad-line "FIXME")]))
-(define (parse-derive-line ln-tok derive-tok toks)
-  (parse-line* (list* ln-tok derive-tok toks)))
-#;
+    [(list* tok _)
+     (raise-parser-error* tok
+                          `[(p "Expected a statement keyword, one of"
+                               ,(rich 'program-text "Derive") ","
+                               ,(rich 'program-text "Block") ","
+                               ,(rich 'program-text "Assume") ","
+                               ,(rich 'program-text "Let") ", or"
+                               ,(rich 'program-text "Want") ".")])]))
+
+(define (make-end name tok)
+  (position-token name (position-token-start-pos tok) (position-token-end-pos tok)))
+
 (define (parse-derive-line ln-tok derive-tok toks)
   (define by-index (index-where toks (lambda (tok) (eq? (token-name* tok) 'BY))))
   (cond [by-index
-         (define-values (prop-toks just-toks) ;; BY token goes to prop-toks
-           (split-at toks (add1 by-index)))
-         (define prop (with-handlers ([misparse?
-                                       (lambda (mp)
-                                         __)])
-                        (parse-prop prop-toks)))
-         (define just (with-handlers ([misparse?
-                                       (lambda (mp)
-                                         __)])
-                        (parse-justification just-toks)))
-         __]
+         (define-values (prop-toks just-toks)
+           (split-at toks by-index))
+         (define ln
+           (match ln-tok
+             [(token 'INTEGER n) (list n)]
+             [(token 'LINENUMBER ln) ln]))
+         (define prop
+           (let ([end (make-end 'End-of-Proposition (car just-toks))])
+             (parse-prop (append prop-toks (list end)))))
+         (define just
+           (let ([end (make-end 'End-of-Justification (last just-toks))])
+             (parse-justification (append (drop-right just-toks 1) (list end)))))
+         (line ln (derive prop just))]
         [else
-         (bad-line "FIXME")]))
-|#
+         (define prop (parse-prop toks))
+         (raise-parser-error* (last toks)
+                              `[(p "Expected" ,(rich 'program-text "by")
+                                   "followed by justification.")])]))
 
-(define (parse-line* toks)
-  (line-parser (tokens->lex toks)))
+(define (parse-line* toks) (line-parser (tokens->lex toks)))
+(define (parse-prop toks) (prop-parser (tokens->lex toks)))
+(define (parse-justification toks) (justification-parser (tokens->lex toks)))
 
-(define (raise-parser-error ok? name value start end)
+(define (raise-parser-error* tok rts)
+  (define t (position-token-token tok))
+  (raise-parser-error #t (token-name t) (token-value t)
+                      (position-token-start-pos tok) (position-token-end-pos tok)
+                      #:rts rts))
+
+(define (raise-parser-error ok? name value start end #:rts [rts null])
   (reject `(v (h "Syntax error")
               (h "Unexpected token: "
                  ,(rich 'program-text
-                        (cond [(memq name '(EOF NEWLINE))
+                        (cond [(memq name '(EOF NEWLINE End-of-Justification))
                                " "]
                               [else
                                (bytes->string/utf-8
@@ -345,15 +368,25 @@
                  ")")
               (h "Position: "
                  ,(rich 'srcpair (cons start end)))
-              ,@(cond [(memq name '(EOF NEWLINE))
+              ,@(cond [(pair? rts)
+                       rts]
+                      [(memq name '(EOF NEWLINE))
                        `((p "The line is incomplete."))]
+                      [(memq name '(End-of-Proposition))
+                       `((p "The" ,(rich 'program-text "Derive")
+                            "statement's proposition is incomplete."))]
+                      [(memq name '(End-of-Justification))
+                       `((p "The" ,(rich 'program-text "Derive")
+                            "statement's justification is incomplete."))]
                       [else '()]))))
 
-(define line-parser
+(match-define (list line-parser
+                    prop-parser
+                    justification-parser)
   (parser
    (tokens tokens0 tokens1)
-   (start Line)
-   (end NEWLINE EOF)
+   (start Line Prop Justification)
+   (end NEWLINE EOF End-of-Proposition End-of-Justification)
    (error raise-parser-error)
    (src-pos)
    #;(debug "proof.grammar")
