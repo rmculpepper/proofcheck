@@ -79,7 +79,7 @@
    MINUS
    TIMES
 
-   MAPSTO
+   GETS
    COMMA
    COLON
    SEMICOLON
@@ -203,7 +203,8 @@
    ["-" 'MINUS]
    ["*" 'TIMES]
 
-   ["↦" 'MAPSTO]
+   [":=" 'GETS]
+   ["↦" 'GETS]
    ["," 'COMMA]
    [":" 'COLON]
    [";" 'SEMICOLON]
@@ -214,7 +215,6 @@
    ["forward" 'FORWARD]
    ["backward" 'BACKWARD]
 
-   [":->" 'MAPSTO]
    ["in" 'IN]
 
    ["NN" (token-IDENTIFIER 'ℕ)]
@@ -452,7 +452,7 @@
      [(HASH LineNumber)
       (ref:line $2)]]
     [VarMap
-     [(Variable+ MAPSTO Expr+)
+     [(Variable+ GETS Expr+)
       (let ([vars $1] [exprs $3])
         (unless (= (length vars) (length exprs))
           (reject `(v "Bad variable mapping."
