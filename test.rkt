@@ -44,7 +44,7 @@
 
 (tperr
  #:err #rx"Bad line number"
- "1 Want A 1 Want B")
+ "1 Want A \n 1 Want B")
 
 ;; ----------------------------------------
 ;; check-lines
@@ -58,19 +58,19 @@
 
 (terr
  #:err #rx"Block statement is not allowed here"
- "1 Block 1.1 Block 1.2 Assume A")
+ "1 Block \n 1.1 Block \n 1.2 Assume A")
 
 (terr
  #:err #rx"not in scope" ;; Assume
- "1 Block 1.1 Assume LE(x,y)")
+ "1 Block \n 1.1 Assume LE(x,y)")
 
 (terr
  #:err #rx"Let statement is not allowed here"
- "1 Block 1.1 Assume A 1.2 Let x in S")
+ "1 Block \n 1.1 Assume A \n 1.2 Let x in S")
 
 (terr
  #:err #rx"already in scope" ;; Let
- "1 Block 1.1 Let x in A 1.2 Block 1.2.1 Let x in B")
+ "1 Block \n 1.1 Let x in A \n 1.2 Block \n 1.2.1 Let x in B")
 
 (terr
  #:err #rx"within a block"
@@ -79,8 +79,6 @@
 (terr
  #:err #rx"within a block"
  "1 Assume A")
-
-
 
 
 ;; ----------------------------------------
@@ -92,81 +90,81 @@
 ;; getln
 (terr
  #:err #rx"not available"
- "1 Block 1.1 Assume A 2 Derive A or B by OrIntroL on #1.1")
+ "1 Block \n 1.1 Assume A \n 2 Derive A or B by OrIntroL on #1.1")
 ;; getp
 (terr
  #:err #rx"Axiom.*not defined"
  "1 Derive X by AndElimL on Axiom 999")
 (terr
  #:err #rx"refers to a Want statement"
- "1 Want A and B 2 Derive A by AndElimL on #1")
+ "1 Want A and B \n 2 Derive A by AndElimL on #1")
 (terr
  #:err #rx"refers to a block"
- "1 Block 2 Derive A by AndElimL on #1")
+ "1 Block \n 2 Derive A by AndElimL on #1")
 ;; getb
 (terr
  #:err #rx"requires a reference to a block"
- "1 Want A 2 Derive A implies A by ImpliesIntro on #1")
+ "1 Want A \n 2 Derive A implies A by ImpliesIntro on #1")
 
 ;; And
 (tok "Axiom 1: A and B \n 1 Derive A by AndElimL on Axiom 1")
 (tok "Axiom 1: A and B \n 1 Derive B by AndElimR on Axiom 1")
-(tok "Axiom 1: A Axiom 2: B \n 1 Derive A and B by AndIntro on Axiom 1, Axiom 2")
+(tok "Axiom 1: A \n Axiom 2: B \n 1 Derive A and B by AndIntro on Axiom 1, Axiom 2")
 (terr "Axiom 1: A and B \n 1 Derive B by AndElimL on Axiom 1" #:err (badarg))
-(terr "Axiom 1: A Axiom 2: B \n 1 Derive A by AndIntro on Axiom 1, Axiom 2" #:err (badr))
+(terr "Axiom 1: A \n Axiom 2: B \n 1 Derive A by AndIntro on Axiom 1, Axiom 2" #:err (badr))
 
 ;; Or
 (tok "Axiom 1: A \n 1 Derive A or B by OrIntroL on Axiom 1")
 (tok "Axiom 1: A \n 1 Derive B or A by OrIntroR on Axiom 1")
-(tok "Axiom 1: A or B Axiom 2: A implies C Axiom 3: B implies C
+(tok "Axiom 1: A or B \n Axiom 2: A implies C \n Axiom 3: B implies C
 1 Derive C by OrElim on Axiom 1, Axiom 2, Axiom 3")
 (terr "Axiom 1: A \n 1 Derive B or B by OrIntroL on Axiom 1" #:err (badarg))
 (terr "Axiom 1: A \n 1 Derive B or B by OrIntroR on Axiom 1" #:err (badarg))
-(terr "Axiom 1: A or B Axiom 2: A implies C Axiom 3: B implies C
+(terr "Axiom 1: A or B \n Axiom 2: A implies C \n Axiom 3: B implies C
 1 Derive C by OrElim on Axiom 1, Axiom 2, Axiom 2" #:err (badarg))
-(terr "Axiom 1: A or B Axiom 2: A implies C Axiom 3: B implies D
+(terr "Axiom 1: A or B \n Axiom 2: A implies C \n Axiom 3: B implies D
 1 Derive C by OrElim on Axiom 1, Axiom 2, Axiom 3" #:err (badarg))
-(terr "Axiom 1: A or B Axiom 2: A implies C Axiom 3: B implies C
+(terr "Axiom 1: A or B \n Axiom 2: A implies C \n Axiom 3: B implies C
 1 Derive D by OrElim on Axiom 1, Axiom 2, Axiom 3" #:err (badr))
 
 ;; Implies
-(tok "Axiom 1: A implies B Axiom 2: A \n 1 Derive B by ImpliesElim on Axiom 1, Axiom 2")
-(tok "1 Block 1.1 Assume A 1.2 Derive A and A by AndIntro on #1.1, #1.1
+(tok "Axiom 1: A implies B \n Axiom 2: A \n 1 Derive B by ImpliesElim on Axiom 1, Axiom 2")
+(tok "1 Block \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
 2 Derive A implies (A and A) by ImpliesIntro on #1")
 
 (terr "Axiom 1: A \n 1 Derive A by ImpliesElim on Axiom 1, Axiom 1" #:err (badarg))
-(terr "Axiom 1: A implies B Axiom 2: C \n 1 Derive B by ImpliesElim on Axiom 1, Axiom 2"
+(terr "Axiom 1: A implies B \n Axiom 2: C \n 1 Derive B by ImpliesElim on Axiom 1, Axiom 2"
       #:err (badarg))
-(terr "Axiom 1: A implies B Axiom 2: A \n 1 Derive C by ImpliesElim on Axiom 1, Axiom 2"
+(terr "Axiom 1: A implies B \n Axiom 2: A \n 1 Derive C by ImpliesElim on Axiom 1, Axiom 2"
       #:err (badr))
-(terr "1 Block 1.1 Let x in S 1.2 Assume A
+(terr "1 Block \n 1.1 Let x in S \n 1.2 Assume A
 2 Derive A implies A by ImpliesIntro on #1" #:err #rx"starts with a Let")
-(terr "1 Block 2 Derive A implies A by ImpliesIntro on #1" #:err #rx"single Assume")
-(terr "1 Block 1.1 Assume A 1.2 Assume B
+(terr "1 Block \n 2 Derive A implies A by ImpliesIntro on #1" #:err #rx"single Assume")
+(terr "1 Block \n 1.1 Assume A \n 1.2 Assume B
 2 Derive B implies B by ImpliesIntro on #1" #:err #rx"single Assume")
-(terr "1 Block 1.1 Assume A 1.2 Derive A and A by AndIntro on #1.1, #1.1
+(terr "1 Block \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
 2 Derive A implies (A and B) by ImpliesIntro on #1" #:err (badr))
-(terr "1 Block 1.1 Assume A 1.2 Block
+(terr "1 Block \n 1.1 Assume A \n 1.2 Block
 2 Derive A implies A by ImpliesIntro on #1" #:err #rx"nested block")
-(terr "1 Block 1.1 Assume A 1.2 Derive A and A by AndIntro on #1.1, #1.1
+(terr "1 Block \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
 2 Derive A implies B by ImpliesIntro on #1" #:err (badr))
-(terr "1 Block 1.1 Assume A 1.2 Derive A and A by AndIntro on #1.1, #1.1
+(terr "1 Block \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
 2 Derive B implies (A and A) by ImpliesIntro on #1" #:err (badr))
 
 ;; Iff
 (tok "Axiom 1: A iff B \n 1 Derive A implies B by IffElimF on Axiom 1")
 (tok "Axiom 1: A iff B \n 1 Derive B implies A by IffElimB on Axiom 1")
-(tok "Axiom 1: A implies B Axiom 2: B implies A
+(tok "Axiom 1: A implies B \n Axiom 2: B implies A
 1 Derive A iff B by IffIntro on Axiom 1, Axiom 2")
 (terr "Axiom 1: A iff B \n 1 Derive A implies A by IffElimF on Axiom 1" #:err (badr))
 (terr "Axiom 1: A and B \n 1 Derive A implies B by IffElimF on Axiom 1" #:err (badarg))
 (terr "Axiom 1: A iff B \n 1 Derive A implies A by IffElimB on Axiom 1" #:err (badr))
 (terr "Axiom 1: A and B \n 1 Derive A implies B by IffElimB on Axiom 1" #:err (badarg))
-(terr "Axiom 1: A implies C Axiom 2: B implies A
+(terr "Axiom 1: A implies C \n Axiom 2: B implies A
 1 Derive A iff B by IffIntro on Axiom 1, Axiom 2" #:err (badarg))
-(terr "Axiom 1: A implies B Axiom 2: C implies A
+(terr "Axiom 1: A implies B \n Axiom 2: C implies A
 1 Derive A iff B by IffIntro on Axiom 1, Axiom 2" #:err (badarg))
-(terr "Axiom 1: A implies B Axiom 2: B implies A
+(terr "Axiom 1: A implies B \n Axiom 2: B implies A
 1 Derive A and B by IffIntro on Axiom 1, Axiom 2" #:err (badr))
 
 ;; Forall Elim
@@ -186,17 +184,17 @@
 
 ;; Forall Intro
 (tok "Axiom 102: ∀ x ∈ X, R(x)
-1 Block 1.1 Let a in X 1.2 Derive R(a) by ForAllElim on Axiom 102 with x :-> a
+1 Block \n 1.1 Let a in X \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x :-> a
 2 Derive forall a in X, R(a) by ForAllIntro on #1")
 
-(terr "1 Block 1.1 Assume A
+(terr "1 Block \n 1.1 Assume A
 2 Derive forall x in S, A by ForAllIntro on #1" #:err #rx"no Let")
-(terr "1 Block 1.1 Let x in S 1.2 Assume A
+(terr "1 Block \n 1.1 Let x in S \n 1.2 Assume A
 2 Derive forall x in S, B by ForAllIntro on #1" #:err #rx"not allow.*Assume")
-(terr "1 Block 1.1 Let x in S 1.2 Block
+(terr "1 Block \n 1.1 Let x in S \n 1.2 Block
 2 Derive forall x in S, A by ForAllIntro on #1" #:err #rx"end with a Derive")
 (terr "Axiom 102: ∀ x ∈ X, R(x)
-1 Block 1.1 Let a in X 1.2 Derive R(a) by ForAllElim on Axiom 102 with x :-> a
+1 Block \n 1.1 Let a in X \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x :-> a
 2 Derive forall a in X, C by ForAllIntro on #1" #:err (badr))
 
 ;; Exists Elim
@@ -264,8 +262,8 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 (tok "Axiom 1: LE(1,2)
 1 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with a :-> 1")
 
-(terr "Axiom 1: LE(1,2) 1 Derive A by ExistsIntro on Axiom 1 with a :-> 1" #:err (badr))
-(terr "Axiom 1: LE(1,2) 1 Block 1.1 Let a in NN
+(terr "Axiom 1: LE(1,2) \n 1 Derive A by ExistsIntro on Axiom 1 with a :-> 1" #:err (badr))
+(terr "Axiom 1: LE(1,2) \n 1 Block \n 1.1 Let a in NN
 1.2 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with a :-> 1"
       #:err #rx"already in scope")
 (terr "Axiom 1: LE(1,2)
@@ -277,7 +275,7 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 
 ;; Relaxed Elimination
 (tok "Axiom 1: forall a,b,c in NN, R(a,b) implies R(b,c) implies R(a,c)
-Axiom 2: R(1,2) Axiom 3: R(2,3)
+Axiom 2: R(1,2) \n Axiom 3: R(2,3)
 1 Derive R(1,3) by Axiom 1 with a,b,c :-> 1,2,3 on Axiom 2, Axiom 3")
 
 (tok "Axiom 1: forall a,b in NN, LE(a,b) iff GE(b,a)
@@ -292,13 +290,13 @@ Axiom 2: GE(2,1)
 
 ;; Relaxed Introduction
 (tok "Axiom 1: A and B
-1 Block 1.1 Let x,y in NN 1.2 Assume LE(x,y) 1.3 Derive A by AndElimL on Axiom 1
+1 Block \n 1.1 Let x,y in NN \n 1.2 Assume LE(x,y) \n 1.3 Derive A by AndElimL on Axiom 1
 2 Derive forall x,y in NN, LE(x,y) implies A by Intro on #1")
 (tok "Axiom 1: A and B
-1 Block 1.1 Assume C 1.2 Derive A by AndElimL on Axiom 1
+1 Block \n 1.1 Assume C \n 1.2 Derive A by AndElimL on Axiom 1
 2 Derive C implies A by Intro on #1")
 (tok "Axiom 1: A and B
-1 Block 1.1 Let x,y in NN 1.2 Derive A by AndElimL on Axiom 1
+1 Block \n 1.1 Let x,y in NN \n 1.2 Derive A by AndElimL on Axiom 1
 2 Derive forall x,y in NN, A by Intro on #1")
 
 ;; FIXME: error tests
@@ -312,27 +310,27 @@ Axiom 2: GE(2,1)
       #:err #rx"logical structure")
 
 ;; ModusTollens
-(tok "Axiom 1: A implies B Axiom 2: not B
+(tok "Axiom 1: A implies B \n Axiom 2: not B
 1 Derive not A by ModusTollens on Axiom 1, Axiom 2")
 
-(terr "Axiom 1: A Axiom 2: not B
+(terr "Axiom 1: A \n Axiom 2: not B
 1 Derive not A by ModusTollens on Axiom 1, Axiom 2" #:err (badarg))
-(terr "Axiom 1: A implies B Axiom 2: not A
+(terr "Axiom 1: A implies B \n Axiom 2: not A
 1 Derive not B by ModusTollens on Axiom 1, Axiom 2" #:err (badarg))
-(terr "Axiom 1: A implies B Axiom 2: not B
+(terr "Axiom 1: A implies B \n Axiom 2: not B
 1 Derive C by ModusTollens on Axiom 1, Axiom 2" #:err (badr))
 
 ;; DisjunctiveSyllogism
-(tok "Axiom 1: A or B Axiom 2: not A
+(tok "Axiom 1: A or B \n Axiom 2: not A
 1 Derive B by DisjunctiveSyllogism on Axiom 1, Axiom 2")
-(tok "Axiom 1: A or B Axiom 2: not B
+(tok "Axiom 1: A or B \n Axiom 2: not B
 1 Derive A by DisjunctiveSyllogism on Axiom 1, Axiom 2")
 
-(terr "Axiom 1: A and B Axiom 2: not A
+(terr "Axiom 1: A and B \n Axiom 2: not A
 1 Derive B by DisjunctiveSyllogism on Axiom 1, Axiom 2" #:err (badarg))
-(terr "Axiom 1: A or B Axiom 2: A
+(terr "Axiom 1: A or B \n Axiom 2: A
 1 Derive B by DisjunctiveSyllogism on Axiom 1, Axiom 2" #:err (badarg))
-(terr "Axiom 1: A or B Axiom 2: not A
+(terr "Axiom 1: A or B \n Axiom 2: not A
 1 Derive C by DisjunctiveSyllogism on Axiom 1, Axiom 2" #:err (badr))
 
 ;; Contradiction
