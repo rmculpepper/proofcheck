@@ -48,8 +48,7 @@
   (LINENUMBER
    INTEGER
    IDENTIFIER
-   LCIDENTIFIER
-   UCIDENTIFIER
+   VARIABLE
    OBJECTNAME
    ))
 
@@ -251,16 +250,16 @@
    [":->" 'MAPSTO]
    ["in" 'IN]
 
-   ["NN" (token-UCIDENTIFIER 'ℕ)]
+   ["NN" (token-IDENTIFIER 'ℕ)]
 
    [$N+ (token-INTEGER (string->number lexeme))]
    [(:: $N+ (:+ "." $N+) (:? "."))
     (token-LINENUMBER (map string->number (string-split lexeme "." #:trim? #t)))]
    [(:: $A (:* $AN))
     (cond [(char-lower-case? (string-ref lexeme 0))
-           (token-LCIDENTIFIER (string->symbol lexeme))]
+           (token-VARIABLE (string->symbol lexeme))]
           [else
-           (token-UCIDENTIFIER (string->symbol lexeme))])]
+           (token-IDENTIFIER (string->symbol lexeme))])]
    ))
 
 (define (base:string->lines s)
@@ -439,11 +438,11 @@
       (prop:cmp 'ge $1 $3)]
      [(Expr LE Expr)
       (prop:cmp 'le $1 $3)]
-     [(UCIDENTIFIER LP Expr+ RP)
+     [(IDENTIFIER LP Expr+ RP)
       (prop:pred $1 $3)]
      [(Expr IN Set)
       (prop:in $1 $3)]
-     [(UCIDENTIFIER)
+     [(IDENTIFIER)
       (prop:atomic $1)]]
 
     [Expr
@@ -451,26 +450,26 @@
       (expr:integer $1)]
      [(OBJECTNAME)
       (expr:object $1)]
-     [(LCIDENTIFIER)
+     [(VARIABLE)
       (expr:var $1)]
      [(Expr PLUS Expr)
       (expr:plus $1 $3)]
      [(Expr TIMES Expr)
       (expr:times $1 $3)]
-     [(LCIDENTIFIER LP Expr+ RP)
+     [(VARIABLE LP Expr+ RP)
       (expr:apply $1 $3)]
      [(LP Expr RP)
       $2]]
 
     [Set
-     [(LCIDENTIFIER) $1]
-     [(UCIDENTIFIER) $1]]
+     [(VARIABLE) $1]
+     [(IDENTIFIER) $1]]
 
     [Variable+
      [(Variable) (list $1)]
      [(Variable COMMA Variable+) (cons $1 $3)]]
     [Variable
-     [(LCIDENTIFIER) $1]]
+     [(VARIABLE) $1]]
 
     [Expr+
      [(Expr) (list $1)]
