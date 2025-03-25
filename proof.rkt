@@ -139,13 +139,25 @@
 
 ;; LEnv = Hash[LineNo => Statement]
 
-;; check-proof : Lines -> #f or Prop
+;; check-proof : Proof -> #f or Prop
 ;; Returns prop for complete proof (ends in Derive), #f otherwise.
-(define (check-proof lines)
-  (check-block lines (hash) 'top)
-  (match (and (pair? lines) (last lines))
-    [(line ln (derive p _)) p]
-    [_ #f]))
+(define (check-proof pf)
+  (match pf
+    [(proof decls lines)
+     (define lenv (check-decls decls))
+     (check-block lines lenv 'top)
+     (match (and (pair? lines) (last lines))
+       [(line ln (derive p _)) p]
+       [_ #f])]))
+
+(define (check-decls decls)
+  (for/fold ([lenv (hash)]) ([decl (in-list decls)])
+    (match decl
+      [(axiom n p)
+       (let ([fvs (prop-fvs p null)])
+         (unless (null? fvs)
+           (reject (err:prop-fv (ref:axiom n) fvs))))
+       (hash-set lenv (ref:axiom n) p)])))
 
 (define (check-block lines lenv b-rule)
   (check-lines lines lenv (block-rule->state b-rule) b-rule))
@@ -154,12 +166,6 @@
   (match lines
     [(list)
      (void)]
-    [(cons (axiom n p) lines)
-     ;; Parser ensures axiom decl only at top level, before proof.
-     (let ([fvs (prop-fvs p null)])
-       (unless (null? fvs)
-         (reject (err:prop-fv (ref:axiom n) fvs))))
-     (check-lines lines (hash-set lenv (ref:axiom n) p) state b-rule)]
     [(cons (line n stmt) lines)
      (define state*
        (parameterize ((error-info (list (err:line n stmt))))

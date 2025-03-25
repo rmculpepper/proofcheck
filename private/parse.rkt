@@ -590,11 +590,16 @@
 
 ;; ============================================================
 
-;; string->proof : String -> (Listof Statement)
-(define (string->proof s)
+(struct proof
+  (decls ;; (Listof Axiom)
+   lines ;; (Listof Line)
+   ) #:transparent)
+
+;; string->proof : String -> Proof
+(define (string->proof s #:prefix [pre-decls null])
   (define lines1 (base:string->lines s))
   (define lines2 (pass1 lines1))
-  (pass2 lines2))
+  (pass2 (append pre-decls lines2)))
 
 ;; pass1 : (Listof Statement) -> (Listof Statement)
 ;; Collect block lines into block AST.
@@ -614,6 +619,41 @@
     [(cons l lines)
      (cons l (pass1 lines))]))
 
+;; pass2 : (Listof Statement) -> Proof
+;; Check line numbers.
+(define (pass2 lines)
+  (define (axloop lines acc)
+    (match lines
+      [(cons (? axiom? a) lines)
+       (axloop lines (cons a acc))]
+      [lines
+       (proof (reverse acc) (loop lines '(0)))]))
+  (define (loop lines lastn)
+    (match lines
+      [(list)
+       null]
+      [(cons (? axiom? a) lines)
+       (reject `(v (h "Axiom declaration not allowed here.")
+                   (p "All Axiom declarations must come before"
+                      "the first proof line.")))]
+      [(cons (line n stmt) lines)
+       (define-values (n* lastn*)
+         (drop-common-prefix n lastn))
+       (match* [n* lastn*]
+         [[(list n0) (list lastn0)]
+          #:when (> n0 lastn0)
+          (void)]
+         [[_ _]
+          (reject `(v (h "Bad line number: " ,(rich 'lineno n))
+                      (h "Previous line number: " ,(rich 'lineno lastn))))])
+       (cons (match stmt
+               [(block rule b-lines)
+                (line n (block rule (loop b-lines (append n '(0)))))]
+               [_ (line n stmt)])
+             (loop lines n))]))
+  (axloop lines null))
+
+#;
 ;; pass2 : (Listof Statement) -> (Listof Statement)
 ;; Check line numbers.
 (define (pass2 lines [lastn '(0)] [ax-ok? #t])
