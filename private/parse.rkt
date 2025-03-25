@@ -587,3 +587,57 @@
                 (h "Instead got: " ,(number->string (length on-args)))
                 (h "Source location: " ,(rich 'srcpair srcpair)))))
   (apply f (append args on-args)))
+
+;; ============================================================
+
+;; string->proof : String -> (Listof Statement)
+(define (string->proof s)
+  (define lines1 (base:string->lines s))
+  (define lines2 (pass1 lines1))
+  (pass2 lines2))
+
+;; pass1 : (Listof Statement) -> (Listof Statement)
+;; Collect block lines into block AST.
+(define (pass1 lines)
+  (match lines
+    [(list)
+     null]
+    [(cons (line n (block rule #f)) lines)
+     (define (line-number-extends-n? l)
+       (match-define (line ln _) l)
+       (define-values (n* ln*) (drop-common-prefix n ln))
+       (null? n*))
+     (define-values (block-lines rest-lines)
+       (splitf-at lines line-number-extends-n?))
+     (cons (line n (block rule (pass1 block-lines)))
+           (pass1 rest-lines))]
+    [(cons l lines)
+     (cons l (pass1 lines))]))
+
+;; pass2 : (Listof Statement) -> (Listof Statement)
+;; Check line numbers.
+(define (pass2 lines [lastn '(0)] [ax-ok? #t])
+  (match lines
+    [(list)
+     null]
+    [(cons (? axiom? a) lines)
+     (unless ax-ok?
+       (reject `(v (h "Axiom declaration not allowed here.")
+                   (p "All Axiom declarations must come before"
+                      "the first proof line."))))
+     (cons a (pass2 lines lastn ax-ok?))]
+    [(cons (line n stmt) lines)
+     (define-values (n* lastn*)
+       (drop-common-prefix n lastn))
+     (match* [n* lastn*]
+       [[(list n0) (list lastn0)]
+        #:when (> n0 lastn0)
+        (void)]
+       [[_ _]
+        (reject `(v (h "Bad line number: " ,(rich 'lineno n))
+                    (h "Previous line number: " ,(rich 'lineno lastn))))])
+     (cons (match stmt
+             [(block rule b-lines)
+              (line n (block rule (pass2 b-lines (append n '(0)) #f)))]
+             [_ (line n stmt)])
+           (pass2 lines n #f))]))
