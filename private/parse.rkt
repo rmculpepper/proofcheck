@@ -29,6 +29,7 @@
    LP
    RP
    HASH
+   QED
 
    DERIVE
    BLOCK
@@ -37,6 +38,7 @@
    WANT
    AXIOM
    DECLARE
+   THEOREM
 
    NOT
    OR
@@ -129,6 +131,8 @@
    ["Want" 'WANT]
    ["Axiom" 'AXIOM]
    ["Declare" 'DECLARE]
+   ["Theorem" 'THEOREM]
+   ["QED" 'QED]
 
    ["¬" 'NOT]
    ["∧" 'AND]
@@ -285,16 +289,15 @@
 
 (define (parse-line toks)
   (match toks
-    [(list* (token 'AXIOM) _)
+    [(list (token name))
+     #:when (memq name '(NEWLINE EOF))
+     #f]
+    [(list* (token name) _)
+     #:when (memq name '(AXIOM THEOREM QED))
      (parse-line* toks)]
-    [(list* (and tok (token 'INTEGER)) toks)
+    [(list* (and tok (token name)) toks)
+     #:when (memq name '(INTEGER LINENUMBER))
      (parse-proof-line tok toks)]
-    [(list* (and tok (token 'LINENUMBER)) toks)
-     (parse-proof-line tok toks)]
-    [(list (token 'NEWLINE))
-     #f]
-    [(list (token 'EOF))
-     #f]
     [(list* tok _)
      (raise-parser-error* tok
                           `[(p "Expected either a line number or the word "
@@ -407,6 +410,8 @@
 
     [Line
      [(AxiomDecl) $1]
+     [(THEOREM COLON Prop) (setgoal $3)]
+     [(QED) (qed)]
      [(ProofLine) $1]]
 
     [AxiomDecl
@@ -592,7 +597,9 @@
 
 (struct proof
   (decls ;; (Listof Axiom)
+   goal  ;; Prop or #f
    lines ;; (Listof Line)
+   qed?  ;; Boolean
    ) #:transparent)
 
 ;; string->proof : String -> Proof
@@ -622,20 +629,34 @@
 ;; pass2 : (Listof Statement) -> Proof
 ;; Check line numbers.
 (define (pass2 lines)
+  (define (wrong v goal?)
+    (match v
+      [(? axiom? a)
+       (reject `(v (h "Axiom declaration not allowed here.")
+                   (p "All Axiom declarations must come before"
+                      "the Theorem declaration or the first proof line.")))]
+      [(? setgoal?)
+       (reject `(v (h "Theorem declaration not allowed here.")
+                   ,(if goal?
+                        `(p "Only one Theorem declaration is allowed.")
+                        `(p "The Theorem declaration must come before"
+                            "the first proof line."))))]
+      [(? line?)
+       (reject `(v (h "Proof line not allowed here.")
+                   (p "All proof lines must come before the QED.")))]))
   (define (axloop lines acc)
     (match lines
       [(cons (? axiom? a) lines)
        (axloop lines (cons a acc))]
-      [lines
-       (proof (reverse acc) (loop lines '(0)))]))
-  (define (loop lines lastn)
+      [lines (values (reverse acc) lines)]))
+  (define (thmloop lines)
     (match lines
-      [(list)
-       null]
-      [(cons (? axiom? a) lines)
-       (reject `(v (h "Axiom declaration not allowed here.")
-                   (p "All Axiom declarations must come before"
-                      "the first proof line.")))]
+      [(cons (setgoal goal-prop) lines)
+       (values goal-prop lines)]
+      [lines (values #f lines)]))
+  (define (loop lines lastn goal? acc)
+    (match lines
+      [(cons (? axiom? a) lines) (wrong a)]
       [(cons (line n stmt) lines)
        (define-values (n* lastn*)
          (drop-common-prefix n lastn))
@@ -646,38 +667,31 @@
          [[_ _]
           (reject `(v (h "Bad line number: " ,(rich 'lineno n))
                       (h "Previous line number: " ,(rich 'lineno lastn))))])
-       (cons (match stmt
-               [(block rule b-lines)
-                (line n (block rule (loop b-lines (append n '(0)))))]
-               [_ (line n stmt)])
-             (loop lines n))]))
-  (axloop lines null))
-
-#;
-;; pass2 : (Listof Statement) -> (Listof Statement)
-;; Check line numbers.
-(define (pass2 lines [lastn '(0)] [ax-ok? #t])
-  (match lines
-    [(list)
-     null]
-    [(cons (? axiom? a) lines)
-     (unless ax-ok?
-       (reject `(v (h "Axiom declaration not allowed here.")
-                   (p "All Axiom declarations must come before"
-                      "the first proof line."))))
-     (cons a (pass2 lines lastn ax-ok?))]
-    [(cons (line n stmt) lines)
-     (define-values (n* lastn*)
-       (drop-common-prefix n lastn))
-     (match* [n* lastn*]
-       [[(list n0) (list lastn0)]
-        #:when (> n0 lastn0)
-        (void)]
-       [[_ _]
-        (reject `(v (h "Bad line number: " ,(rich 'lineno n))
-                    (h "Previous line number: " ,(rich 'lineno lastn))))])
-     (cons (match stmt
-             [(block rule b-lines)
-              (line n (block rule (pass2 b-lines (append n '(0)) #f)))]
-             [_ (line n stmt)])
-           (pass2 lines n #f))]))
+       (loop lines n goal?
+             (cons (match stmt
+                     [(block rule b-lines)
+                      (define-values (b-lines* _lines)
+                        (loop b-lines (append n '(0)) goal? null))
+                      (line n (block rule b-lines*))]
+                     [_ (line n stmt)])
+                   acc))]
+      [lines (values (reverse acc) lines)]))
+  (define (qedloop lines goal? qed?)
+    (match lines
+      [(list) qed?]
+      [(list* (qed) lines)
+       (unless goal?
+         (reject `(v (h "QED not allowed here.")
+                     (p "QED is only allowed if there was a Theorem"
+                        "declaration before the proof."))))
+       (when qed?
+         (reject `(v (h "QED not allowed here.")
+                     (p "Only one QED is allowed."))))
+       (qedloop lines goal? #t)]
+      [(list* v lines) (wrong v)]))
+  (define-values (decls lines2) (axloop lines null))
+  (define-values (goal-prop lines3) (thmloop lines2))
+  (define goal? (and goal-prop #t))
+  (define-values (proof-lines lines4) (loop lines3 '(0) goal? null))
+  (define qed? (qedloop lines4 goal? #f))
+  (proof decls goal-prop proof-lines qed?))

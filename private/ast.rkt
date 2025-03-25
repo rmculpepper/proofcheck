@@ -8,7 +8,9 @@
 (provide (all-defined-out))
 
 (struct axiom (n p) #:prefab)
+(struct setgoal (prop) #:prefab)
 (struct line (n s) #:prefab)
+(struct qed () #:prefab)
 
 (struct derive (p j) #:prefab)
 (struct block (rule ss) #:prefab)

@@ -26,12 +26,28 @@
 ;; Returns prop for complete proof (ends in Derive), #f otherwise.
 (define (check-proof pf)
   (match pf
-    [(proof decls lines)
+    [(proof decls goal lines qed?)
      (define lenv (check-decls decls))
      (check-block lines lenv 'top)
-     (match (and (pair? lines) (last lines))
-       [(line ln (derive p _)) p]
-       [_ #f])]))
+     ;; (check-goal goal lenv)
+     (define last-derived-prop
+       (match (and (pair? lines) (last lines))
+         [(line ln (derive p _)) p]
+         [_ #f]))
+     (when qed?
+       (unless last-derived-prop
+         (reject
+          `(v (h "Incorrect proof (QED failed).")
+              (p "The proof is incomplete, because the main proof list"
+                 "does not end with a Derive statement."))))
+       (unless (prop=? goal last-derived-prop)
+         (reject
+          `(v (h "Incorrect proof (QED failed).")
+              (p "The last proposition derived by the proof is not"
+                 "the proposition from the Theorem declaration.")
+              (h "Theorem: " ,(rich 'prop goal))
+              (h "Last derived: " ,(rich 'prop last-derived-prop))))))
+     last-derived-prop]))
 
 (define (check-decls decls)
   (for/fold ([lenv (hash)]) ([decl (in-list decls)])

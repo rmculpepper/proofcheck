@@ -63,16 +63,22 @@ Axiom 11: ∀ n,d,q1,r1,q2,r2 ∈ NN, Div(n,d,q1,r1) ⇒ Div(n,d,q2,r2) ⇒ (q1 
                       (escape (hash 'v 1 'format "html" 'error text 'errorh html)))))
       (with-handlers ([exn:fail?
                        (lambda (e)
+                         ((error-display-handler) (exn-message e) e)
                          (escape (hash 'v 1 'format "text" 'error (exn-message e))))])
         (define pf (string->proof proof-text #:prefix axioms6))
         (define dprop (check-proof pf))
         (define msg
-          (cond [dprop
-                 `(v "OK."
-                     (h "Proven: " ,(rich 'prop dprop)))]
+          (cond [(proof-qed? pf)
+                 `(v "Proof complete."
+                     (h "Theorem: " ,(rich 'prop dprop)))]
+                [(proof-goal pf)
+                 `(v (h "No errors were found, but the proof is incomplete.")
+                     (p "The proof is incomplete because there was a Theorem declaration"
+                        "but the proof does not end with QED.")
+                     ,@(if dprop `[(h "Last derived: " ,(rich 'prop dprop))] '[]))]
                 [else
-                 `(p "No errors found, but the proof is incomplete, because"
-                     "the main list does not end with a Derive statement.")]))
+                 `(v (h "No errors were found.")
+                     ,@(if dprop `[(h "Last derived: " ,(rich 'prop dprop))] '[]))]))
         (define text (rich-text->string msg))
         (define html (xexpr->string ((rich-text->xexpr wrap-div) msg)))
         (hash 'v 1 'format "html" 'pass text 'passh html)))))
