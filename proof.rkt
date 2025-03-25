@@ -12,128 +12,11 @@
          "private/ast.rkt"
          "private/error.rkt"
          "private/parse.rkt")
-(provide string->proof
-         (all-defined-out))
-
-;; ============================================================
-
-(define (err:line ln [stmt #f])
-  `(h "Error on line labeled #" ,(rich 'lineno ln) ":"))
-
-(define (err:rule just)
-  `(h "Incorrect use of " ,(rich 'rule (justification-rule-name just))))
-
-(define (err:got-arg p)
-  `(h "Instead got: " ,(rich 'prop p)))
-(define (err:got-result p)
-  `(h "Instead found: Derive " ,(rich 'prop p)))
-
-(define (err:prop-fv ref fvs)
-  `(v "The proposition refers to one or more variables that are not in scope."
-      ,@(if ref `((h "Proposition: " ,(rich 'ref ref))) '())
-      (h "Free variables: " ,(rich 'vars fvs))))
-
-(define (err:vm-fv fvs)
-  `(v (p "Expressions in the variable mapping refers to one or more variables"
-         "that are not in scope.")
-      (h "Free variables: " ,(rich 'vars fvs))))
-
-(define (err:witness-fv fvs)
-  `(v (p "The witness expression refers to one or more variables"
-         "that are not in scope.")
-      (h "Free variables: " ,(rich 'vars fvs))))
-
-(define (err:intro-not-fresh var)
-  `(v "Let statement introduces a variable that is already in scope."
-      (h "Variable: " ,(rich 'var var))))
-
-(define (err:ref-line-unavail ln)
-  `(v "The justification refers to a line that is not available."
-      (h "Line: " ,(rich 'lineno ln))))
-
-(define (err:ref-axiom-undef ref)
-  `(v "The justification refers to an Axiom that is not defined."
-      (h "Reference: " ,(rich 'ref ref))))
-
-(define (err:ref-is-block ref)
-  `(v (p "The justification requires a reference to a proposition,"
-         "but the given line number refers to a block.")
-      (h "Reference: " ,(rich 'ref ref))))
-
-(define (err:ref-is-want ref)
-  `(v (p "The justification requires a reference to a proposition,"
-         "but the given line number refers to a Want statement.")
-      (h "Reference: " ,(rich 'ref ref))))
-
-(define (err:ref-not-block ref)
-  `(v (p "The justification requires a reference to a block.")
-      (h "Reference: " ,(rich 'ref ref))))
-
-(define (err:block-ends-with-block ref)
-  `(v (p "The given block ends with a nested block.")
-      (h "Block: " ,(rich 'block-ref ref))))
-
-(define (err:vm-vars q-vars vm-vars)
-  `(v "The variable mapping must match the quantifier's variables, in order."
-      (h "Quantifier's variables: " ,(rich 'vars q-vars))
-      (h "Variable mapping's variables: " ,(rich 'vars vm-vars))))
-
-(define (err:block-need-intro ref)
-  `(v (p "The rule requires the block to start with a Let statement,"
-         "but the given block has no Let statement.")
-      (h "Block: " ,(rich 'block-ref ref))))
-
-(define (err:block-unwanted-intro ref)
-  `(v (p "The rule does not allow the block to have a Let statement,"
-         "but the given block starts with a Let statement.")
-      (h "Block: " ,(rich 'block-ref ref))))
-
-(define (err:block-need-one-assume ref n-assumes)
-  `(v "The rule requires the block to have a single Assume statement,"
-      (h "but the referenced block has "
-         ,(if (zero? n-assumes) "no" (format "~a" n-assumes))
-         " Assume statements.")))
-
-(define (err:block-unwanted-assume ref)
-  `(v (p "The rule does not allow the block to contain Assume statements,"
-         "but the given block contains at least one Assume statement.")
-      (h "Block: " ,(rich 'block-ref ref))))
-
-(define (err:block-need-derive [ref #f])
-  `(v (p "The rule requires the given block to end with a Derive statement,"
-         "but it does not.")
-      (h "Block: " ,(rich 'block-ref ref))))
-
-(define (err:incorrect-prop what got-p form mvenv mvwhy more expected)
-  `(v (h ,what ,(if form " does not have the correct form." " is incorrect."))
-      ,@(if form `[(h "Required form: " ,(rich 'pattern form))] '())
-      ,@(err-part:mvenv mvenv mvwhy)
-      ,@more
-      ,@(if expected `[(h "Expected: " ,(rich 'prop expected))] '())
-      (h "Instead found: " ,(rich 'prop got-p))))
-
-(define (err-part:mvenv mvenv mvwhy)
-  (define (explain-why)
-    (case mvwhy
-      [(arg) " (if the rule's argument is correct)"]
-      [(args) " (if the rule's arguments are correct)"]
-      [(prev) " (if the rule's previous arguments are correct)"]
-      [(res) " (if the rule's result is correct)"]
-      [else ""]))
-  (cond [(pair? mvenv)
-         `[(h " where" ,(explain-why) ":")
-           ,@(for/list ([entry (in-list mvenv)])
-               (match-define (list mvar prop) entry)
-               `(h "  " ,(rich 'pattern (symbol->string mvar))
-                   " = " ,(rich 'prop prop)))]]
-        [else null]))
-
-(define (err:bad-algebra prop)
-  `(v "The result proposition has the wrong form."
-      (p "The rule derives either an equation or a proposition with the same"
-         "logical structure as the first argument. In the second case, all of"
-         "the remaining arguments must be equations.")
-      (h "Instead found: " ,(rich 'prop prop))))
+(provide (all-from-out "private/ast.rkt")
+         (all-from-out "private/error.rkt")
+         string->proof
+         (struct-out proof)
+         check-proof)
 
 ;; ============================================================
 
@@ -318,6 +201,8 @@
     [(j:DisjSyl _ _) "Disjunctive Syllogism"]
     [(j:Contradiction _) "Contradiction"]
     [_ #f]))
+
+;; ----------------------------------------
 
 (define (check-derive at prop just lenv)
   (parameterize ((error-info (cons (err:rule just) (error-info))))
@@ -740,3 +625,123 @@
      (define-values (intros rest1) (splitf-at stmts0 intro?))
      (define-values (assumes rest2) (splitf-at rest1 assume?))
      (values intros assumes rest2)]))
+
+;; ============================================================
+
+(define (err:line ln [stmt #f])
+  `(h "Error on line labeled #" ,(rich 'lineno ln) ":"))
+
+(define (err:rule just)
+  `(h "Incorrect use of " ,(rich 'rule (justification-rule-name just))))
+
+(define (err:got-arg p)
+  `(h "Instead got: " ,(rich 'prop p)))
+(define (err:got-result p)
+  `(h "Instead found: Derive " ,(rich 'prop p)))
+
+(define (err:prop-fv ref fvs)
+  `(v "The proposition refers to one or more variables that are not in scope."
+      ,@(if ref `((h "Proposition: " ,(rich 'ref ref))) '())
+      (h "Free variables: " ,(rich 'vars fvs))))
+
+(define (err:vm-fv fvs)
+  `(v (p "Expressions in the variable mapping refers to one or more variables"
+         "that are not in scope.")
+      (h "Free variables: " ,(rich 'vars fvs))))
+
+(define (err:witness-fv fvs)
+  `(v (p "The witness expression refers to one or more variables"
+         "that are not in scope.")
+      (h "Free variables: " ,(rich 'vars fvs))))
+
+(define (err:intro-not-fresh var)
+  `(v "Let statement introduces a variable that is already in scope."
+      (h "Variable: " ,(rich 'var var))))
+
+(define (err:ref-line-unavail ln)
+  `(v "The justification refers to a line that is not available."
+      (h "Line: " ,(rich 'lineno ln))))
+
+(define (err:ref-axiom-undef ref)
+  `(v "The justification refers to an Axiom that is not defined."
+      (h "Reference: " ,(rich 'ref ref))))
+
+(define (err:ref-is-block ref)
+  `(v (p "The justification requires a reference to a proposition,"
+         "but the given line number refers to a block.")
+      (h "Reference: " ,(rich 'ref ref))))
+
+(define (err:ref-is-want ref)
+  `(v (p "The justification requires a reference to a proposition,"
+         "but the given line number refers to a Want statement.")
+      (h "Reference: " ,(rich 'ref ref))))
+
+(define (err:ref-not-block ref)
+  `(v (p "The justification requires a reference to a block.")
+      (h "Reference: " ,(rich 'ref ref))))
+
+(define (err:block-ends-with-block ref)
+  `(v (p "The given block ends with a nested block.")
+      (h "Block: " ,(rich 'block-ref ref))))
+
+(define (err:vm-vars q-vars vm-vars)
+  `(v "The variable mapping must match the quantifier's variables, in order."
+      (h "Quantifier's variables: " ,(rich 'vars q-vars))
+      (h "Variable mapping's variables: " ,(rich 'vars vm-vars))))
+
+(define (err:block-need-intro ref)
+  `(v (p "The rule requires the block to start with a Let statement,"
+         "but the given block has no Let statement.")
+      (h "Block: " ,(rich 'block-ref ref))))
+
+(define (err:block-unwanted-intro ref)
+  `(v (p "The rule does not allow the block to have a Let statement,"
+         "but the given block starts with a Let statement.")
+      (h "Block: " ,(rich 'block-ref ref))))
+
+(define (err:block-need-one-assume ref n-assumes)
+  `(v "The rule requires the block to have a single Assume statement,"
+      (h "but the referenced block has "
+         ,(if (zero? n-assumes) "no" (format "~a" n-assumes))
+         " Assume statements.")))
+
+(define (err:block-unwanted-assume ref)
+  `(v (p "The rule does not allow the block to contain Assume statements,"
+         "but the given block contains at least one Assume statement.")
+      (h "Block: " ,(rich 'block-ref ref))))
+
+(define (err:block-need-derive [ref #f])
+  `(v (p "The rule requires the given block to end with a Derive statement,"
+         "but it does not.")
+      (h "Block: " ,(rich 'block-ref ref))))
+
+(define (err:incorrect-prop what got-p form mvenv mvwhy more expected)
+  `(v (h ,what ,(if form " does not have the correct form." " is incorrect."))
+      ,@(if form `[(h "Required form: " ,(rich 'pattern form))] '())
+      ,@(err-part:mvenv mvenv mvwhy)
+      ,@more
+      ,@(if expected `[(h "Expected: " ,(rich 'prop expected))] '())
+      (h "Instead found: " ,(rich 'prop got-p))))
+
+(define (err-part:mvenv mvenv mvwhy)
+  (define (explain-why)
+    (case mvwhy
+      [(arg) " (if the rule's argument is correct)"]
+      [(args) " (if the rule's arguments are correct)"]
+      [(prev) " (if the rule's previous arguments are correct)"]
+      [(res) " (if the rule's result is correct)"]
+      [else ""]))
+  (cond [(pair? mvenv)
+         `[(h " where" ,(explain-why) ":")
+           ,@(for/list ([entry (in-list mvenv)])
+               (match-define (list mvar prop) entry)
+               `(h "  " ,(rich 'pattern (symbol->string mvar))
+                   " = " ,(rich 'prop prop)))]]
+        [else null]))
+
+(define (err:bad-algebra prop)
+  `(v "The result proposition has the wrong form."
+      (p "The rule derives either an equation or a proposition with the same"
+         "logical structure as the first argument. In the second case, all of"
+         "the remaining arguments must be equations.")
+      (h "Instead found: " ,(rich 'prop prop))))
