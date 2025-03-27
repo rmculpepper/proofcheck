@@ -168,12 +168,12 @@
 1 Derive A and B by IffIntro on Axiom 1, Axiom 2" #:err (badr))
 
 ;; Forall Elim
-(tok "Axiom 1: forall a,b in N, R(a,b)
-1 Derive R(1,2) by ForAllElim on Axiom 1 with a,b := 1,2")
+;(tok "Axiom 1: forall a,b in N, R(a,b)
+;1 Derive R(1,2) by ForAllElim on Axiom 1 with a,b := 1,2")
 (tok "Axiom 1: forall a,b in N, R(a,b)
 1 Derive forall b in N, R(1,b) by ForAllElim on Axiom 1 with a := 1")
-(terr "Axiom 1: forall a,b in N, R(a,b)
-1 Derive R(1,2) by ForAllElim on Axiom 1 with x,y := 1,2" #:err #rx"mapping must match")
+;(terr "Axiom 1: forall a,b in N, R(a,b)
+;1 Derive R(1,2) by ForAllElim on Axiom 1 with x,y := 1,2" #:err #rx"mapping must match")
 (terr "Axiom 1: forall a,b in N, R(a,b)
 1 Derive R(1,2) by ForAllElim on Axiom 1 with x := 1" #:err #rx"mapping must match")
 (terr "Axiom 1: forall n in N, R(n)

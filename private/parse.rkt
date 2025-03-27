@@ -520,9 +520,9 @@
      [(Prop IFF Prop)
       (prop:iff $1 $3)]
      [(FORALL Variable+ IN Set COMMA Prop)
-      (prop:forall $2 $4 $6)]
+      (foldr (lambda (v prop) (prop:forall v $4 prop)) $6 $2)]
      [(EXISTS Variable+ IN Set COMMA Prop)
-      (prop:exists $2 $4 $6)]
+      (foldr (lambda (v prop) (prop:exists v $4 prop)) $6 $2)]
      [(LP Prop RP) $2]
 
      [(Expr EQ Expr)

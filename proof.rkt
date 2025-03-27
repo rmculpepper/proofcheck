@@ -260,22 +260,26 @@
     (define what "The rule's result")
     (reject (err:incorrect-prop what prop form mvenv mvwhy more expected)))
   (match just
+    ;; ----------------------------------------
     [(j:AndElimL (app getp pq))
-     (match pq
-       [(prop:and pp qq)
-        (unless (prop=? prop pp)
-          (badr "p" `((p ,pp) (q ,qq)) 'arg #:expect pp))]
-       [_ (bad 1 pq "p ∧ q")])]
+     (define-values (p q)
+       (match pq
+         [(prop:and p q) (values p q)]
+         [_ (bad 1 pq "p ∧ q")]))
+     (unless (prop=? prop p)
+       (badr "p" `((p ,p) (q ,q)) 'arg #:expect p))]
     [(j:AndElimR (app getp pq))
-     (match pq
-       [(prop:and pp qq)
-        (unless (prop=? prop qq)
-          (badr "q" `((p ,pp) (q ,qq)) 'arg #:expect qq))]
-       [_ (bad 1 pq "p ∧ q")])]
+     (define-values (p q)
+       (match pq
+         [(prop:and p q) (values p q)]
+         [_ (bad 1 pq "p ∧ q")]))
+     (unless (prop=? prop q)
+       (badr "q" `((p ,p) (q ,q)) 'arg #:expect p))]
     [(j:AndIntro (app getp p) (app getp q))
      (define dprop (prop:and p q))
      (unless (prop=? prop dprop)
        (badr "p ∧ q" `((p ,p) (q ,q)) 'args #:expect dprop))]
+    ;; ----------------------------------------
     [(j:OrElim (app getp pq) (app getp hp) (app getp hq))
      (define-values (p q)
        (match pq
@@ -283,34 +287,26 @@
          [_ (bad 1 pq "p ∨ q")]))
      (define r
        (match hp
-         [(prop:implies pp r)
-          #:when (prop=? pp p)
-          r]
+         [(prop:implies pp r) #:when (prop=? pp p) r]
          [_ (bad 2 hp "p ⇒ r" `((p ,p) (q ,q)) 'prev)]))
      (match hq
-       [(prop:implies qq rr)
-        #:when (and (prop=? qq q) (prop=? rr r))
-        (void)]
+       [(prop:implies qq rr) #:when (and (prop=? qq q) (prop=? rr r)) (void)]
        [_ (bad 3 hq "q ⇒ r" `((p ,p) (q ,q) (r ,r)) 'prev)])
      (unless (prop=? prop r)
        (badr "r" `((p ,p) (q ,q) (r ,r)) 'args #:expect r))]
     [(j:OrIntroL (app getp p))
      (match prop
-       [(prop:or pp qq)
-        #:when (prop=? pp p)
-        (void)]
+       [(prop:or pp qq) #:when (prop=? pp p) (void)]
        [_ (badr "p ∨ q" `((p ,p)) 'arg)])]
     [(j:OrIntroR (app getp q))
      (match prop
-       [(prop:or pp qq)
-        #:when (prop=? qq q)
-        (void)]
+       [(prop:or pp qq) #:when (prop=? qq q) (void)]
        [_ (badr "p ∨ q" `((q ,q)) 'arg)])]
+    ;; ----------------------------------------
     [(j:ImpElim (app getp pq) (app getp p))
      (define-values (pp qq)
        (match pq
-         [(prop:implies pp qq)
-          (values pp qq)]
+         [(prop:implies pp qq) (values pp qq)]
          [_ (bad 1 pq "p ⇒ q")]))
      (unless (prop=? pp p)
        (bad 2 p "p" `((p ,pp) (q ,qq)) 'prev #:expect pp))
@@ -332,20 +328,23 @@
      (define dprop (prop:implies pa plast))
      (unless (prop=? prop dprop)
        (badr "p ⇒ q" `((p ,pa) (q ,plast)) 'arg #:expect dprop))]
+    ;; ----------------------------------------
     [(j:IffElimF (app getp pq))
-     (match pq
-       [(prop:iff p q)
-        (define dprop (prop:implies p q))
-        (unless (prop=? prop dprop)
-          (badr "p ⇒ q" `((p ,p) (q ,q)) 'arg #:expect dprop))]
-       [_ (bad 1 pq "p ⇔ q")])]
+     (define-values (p q)
+       (match pq
+         [(prop:iff p q) (values p q)]
+         [_ (bad 1 pq "p ⇔ q")]))
+     (define dprop (prop:implies p q))
+     (unless (prop=? prop dprop)
+       (badr "p ⇒ q" `((p ,p) (q ,q)) 'arg #:expect dprop))]
     [(j:IffElimB (app getp pq))
-     (match pq
-       [(prop:iff p q)
-        (define dprop (prop:implies q p))
-        (unless (prop=? prop dprop)
-          (badr "q ⇒ p" `((p ,p) (q ,q)) 'arg #:expect dprop))]
-       [_ (bad 1 pq "p ⇔ q")])]
+     (define-values (p q)
+       (match pq
+         [(prop:iff p q) (values p q)]
+         [_ (bad 1 pq "p ⇔ q")]))
+     (define dprop (prop:implies q p))
+     (unless (prop=? prop dprop)
+       (badr "q ⇒ p" `((p ,p) (q ,q)) 'arg #:expect dprop))]
     [(j:IffIntro (app getp f) (app getp b))
      (match prop
        [(prop:iff p q)
@@ -354,34 +353,32 @@
         (unless (prop=? b (prop:implies q p))
           (bad 2 b "q ⇒ p" `((p ,p) (q ,q)) 'res #:expect (prop:implies q p)))]
        [_ (badr "p ⇔ q")])]
+    ;; ----------------------------------------
     [(j:ForallElim (app getp p) vm)
-     (define vmlen (length vm))
-     (define-values (vs s body)
-       (match p
-         [(prop:forall vs s body)
-          (cond [(< vmlen (length vs))
-                 (define-values (vs1 vs2) (split-at vs vmlen))
-                 (values vs1 s (prop:forall vs2 s body))]
-                [else (values vs s body)])]
-         [_ (bad 1 p "∀ x... ∈ S, P(x...)")]))
-     (unless (equal? vs (map car vm))
-       (reject (err:vm-vars vs (map car vm))))
-     (let ([fv (exprs-fvs (map cdr vm) (in-scope))])
-       (when (pair? fv)
-         (reject (err:vm-fv fv))))
-     (define body* (prop-subst body vm))
-     (unless (prop=? prop body*)
-       (badr "P(a...)"
-             #:more `[" where (if the rule's arguments are correct):"
-                      (h "  " ,(rich 'pattern "P(x...)") " = " ,(rich 'prop body))
-                      (h "  " ,(rich 'pattern "x...") " = " ,(rich 'vars vs))
-                      (h "  " ,(rich 'pattern "a...") " = " ,(rich 'exprs (map cdr vm)))]
-             #:expect body*))]
+     (match vm
+       [(list (cons vmv vme))
+        (match p
+          [(prop:forall v s body)
+           (unless (equal? v vmv)
+             (reject (err:vm-var v vmv)))
+           (let ([fv (expr-fvs vme (in-scope))])
+             (when (pair? fv) (reject (err:vm-fv fv))))
+           (define body* (prop-subst body vm))
+           (unless (prop=? prop body*)
+             (badr "P(a)"
+                   #:more `[" where (if the rule's arguments are correct):"
+                            (h "  " ,(rich 'pattern "P(x)") " = " ,(rich 'prop body))
+                            (h "  " ,(rich 'pattern "x") " = " ,(rich 'var vmv))
+                            (h "  " ,(rich 'pattern "a") " = " ,(rich 'expr vme))]
+                   #:expect body*))]
+          [_ (bad 1 p "∀ x ∈ S, P(x)")])]
+       [_ (reject (err:vm-multi vm))])]
     [(j:ForallIntro (and b-ref (app getb b)))
      (define-values (intros assumes rest) (split-block b))
-     (define-values (bvs bs)
+     (define-values (bv bs)
        (match intros
-         [(list (intro vs s)) (values vs s)]
+         [(list (intro (list v) s)) (values v s)]
+         [(list (intro vs s)) (reject (err:block-intro-multi b-ref))]
          [_ (reject (err:block-need-intro b-ref))]))
      (unless (null? assumes)
        (reject (err:block-unwanted-assume b-ref)))
@@ -389,24 +386,24 @@
        (match (and (pair? rest) (last rest))
          [(derive p _) p]
          [_ (reject (err:block-need-derive b-ref))]))
-     (define dprop (prop:forall bvs bs bbody))
+     (define dprop (prop:forall bv bs bbody))
      (unless (prop=? prop dprop)
-       (badr "∀ x... ∈ S, P(x...)"
+       (badr "∀ x ∈ S, P(x)"
              #:more `[" where"
-                      (h "  " ,(rich 'pattern "x...") " = " ,(rich 'vars bvs))
-                      (h "  " ,(rich 'pattern "P(x...)") " = " ,(rich 'prop bbody))]
+                      (h "  " ,(rich 'pattern "x") " = " ,(rich 'var bv))
+                      (h "  " ,(rich 'pattern "P(x)") " = " ,(rich 'prop bbody))]
              #:expect dprop))]
+    ;; ----------------------------------------
     [(j:ExistsElim (app getp p) (and b-ref (app getb b)))
      (define-values (pv ps pbody)
        (match p
-         [(prop:exists (cons v vs) s body)
-          (values v s (if (pair? vs) (prop:exists vs s body) body))]
+         [(prop:exists v s body) (values v s body)]
          [_ (bad 1 p "∃ x ∈ S, P(x)")]))
      (define-values (hintros hassumes hrest) (split-block b))
      (define hv
        (match hintros
-         ;; FIXME: check hs = s ?
-         [(list (intro (list hv) hs)) hv]
+         [(list (intro (list hv) hs)) hv] ;; FIXME: check hs = s ?
+         [(list (intro hvs hs)) (reject (err:block-intro-multi b-ref))]
          [_ (reject (err:block-need-intro b-ref))]))
      (define body* (prop-subst pbody (list (cons pv (expr:var hv)))))
      (match hassumes
@@ -430,27 +427,27 @@
          (reject
           `(v (p "The rule requires that the last proposition derived in the block"
                  "does not refer to the witness variable.")
-              (h "Witness variable: " ,(rich 'var hv))))))
+              (h "Witness variable: " ,(rich 'var hv))
+              (h "Final proposition: " ,(rich 'prop plast))))))
      (unless (prop=? prop plast)
        (badr "q" `((q ,plast)) 'args))]
     [(j:ExistsIntro (app getp p) vm)
      (define-values (rv rs rbody)
        (match prop
-         [(prop:exists (cons v vs) s body)
-          (values v s (if (pair? vs) (prop:exists vs s body) body))]
+         [(prop:exists v s body) (values v s body)]
          [_ (badr "∃ x ∈ S, P(x)")]))
      (when (memq rv (in-scope))
        (reject `(v "Variable chosen for existential quantifier is already in scope."
                    (h "Quantifier variable: " ,(rich 'var rv)))))
      (match vm
        [(list (cons vv ve))
-        #:when (equal? vv rv)
-        (void)
-        #; ;; should be impossible
+        (unless (equal? vv rv)
+          (reject (err:vm-var rv vv)))
+        ;; FIXME: check ve ∈ rs
         (let ([fv (expr-fvs ve (in-scope))])
           (when (pair? fv)
-            (reject (err:witness-fv fv))))]
-       [_ (reject (err:vm-vars (list rv) (map car vm)))])
+            (reject (err:vm-fv fv))))]
+       [_ (reject (err:vm-multi vm))])
      (define body* (prop-subst rbody vm))
      (unless (prop=? p body*)
        (bad 1 p "P(a)"
@@ -459,7 +456,12 @@
                      (h "  " ,(rich 'pattern "x") " = " ,(rich 'var rv))
                      (h "  " ,(rich 'pattern "a") " = " ,(rich 'expr (cdar vm)))]
             #:expect body*))]
+    ;; ----------------------------------------
+    #|
     [(j:elim (app getp initp1) vm dir qrefs)
+
+     FIXME
+
      (define qs (map getp qrefs))
      ;; Part 1: ∀Elim
      (define initp2
@@ -498,6 +500,9 @@
      (unless (prop=? prop result-prop)
        (badr #:expect result-prop))]
     [(j:intro (and b-ref (app getb b)))
+
+     FIXME
+
      (define-values (intros assumes rest) (split-block b))
      (define-values (bvs bs)
        (match intros
@@ -519,40 +524,41 @@
        (if (pair? bvs) (prop:forall bvs bs iiprop) iiprop))
      (unless (prop=? prop aiprop)
        (badr #:expect aiprop))]
+    |#
+    ;; ----------------------------------------
     [(j:algebra refs)
      (define ps (map getp refs))
      (let ([fvs (prop-fvs prop (in-scope))])
-       (when (pair? fvs) (err:prop-fv #f fvs)))
+       (when (pair? fvs) (reject (err:prop-fv #f fvs))))
      (unless (prop-algebra-can-derive? prop)
        (match ps
          [(cons propa (list (? prop:eq?) ...))
           #:when (prop-same-logic? prop propa)
           (void)]
          [_ (reject (err:bad-algebra prop))]))]
+    ;; ----------------------------------------
     [(j:ModusTollens (app getp pq) (app getp nq))
-     (define-values (pp qq)
+     (define-values (p q)
        (match pq
-         [(prop:implies pp qq)
-          (values pp qq)]
+         [(prop:implies p q) (values p q)]
          [_ (bad 1 pq "p ⇒ q")]))
-     (unless (prop=? nq (prop:not qq))
-       (bad 2 nq "¬q" `((p ,pp) (q ,qq)) 'prev #:expect (prop:not qq)))
-     (unless (prop=? prop (prop:not pp))
-       (badr "¬p" `((p ,pp) (q ,qq)) 'args #:expect (prop:not pp)))]
+     (unless (prop=? nq (prop:not q))
+       (bad 2 nq "¬q" `((p ,p) (q ,q)) 'prev #:expect (prop:not q)))
+     (unless (prop=? prop (prop:not p))
+       (badr "¬p" `((p ,p) (q ,q)) 'args #:expect (prop:not p)))]
     [(j:DisjSyl (app getp pq) (app getp np))
-     (define-values (pp qq)
+     (define-values (p q)
        (match pq
-         [(prop:or pp qq)
-          (values pp qq)]
+         [(prop:or p q) (values p q)]
          [_ (bad 1 pq "p ∨ q")]))
-     (cond [(prop=? np (prop:not pp))
-            (unless (prop=? prop qq)
-              (badr "q" `((p ,pp) (q ,qq)) 'args #:expect qq))]
-           [(prop=? np (prop:not qq))
-            (unless (prop=? prop pp)
-              (badr "p" `((p ,pp) (q ,qq)) 'args #:expect pp))]
+     (cond [(prop=? np (prop:not p))
+            (unless (prop=? prop q)
+              (badr "q" `((p ,p) (q ,q)) 'args #:expect q))]
+           [(prop=? np (prop:not q))
+            (unless (prop=? prop p)
+              (badr "p" `((p ,p) (q ,q)) 'args #:expect p))]
            [else
-            (bad 2 np "¬r" `((p ,pp) (q ,qq)) 'prev
+            (bad 2 np "¬r" `((p ,p) (q ,q)) 'prev
                  #:more `[(h " where " ,(rich 'pattern "r") " is either "
                              ,(rich 'pattern "p") " or " ,(rich 'pattern "q"))])])]
     [(j:Contradiction (and b-ref (app getb b)))
@@ -563,16 +569,17 @@
        (match assumes
          [(list (assume pa)) pa]
          [_ (reject (err:block-need-one-assume b-ref (length assumes)))]))
-     (define plast
+     (define pz
        (match (and (pair? rest) (last rest))
          [(derive p _) p]
          [_ (reject (err:block-need-derive b-ref))]))
-     (unless (prop-contradiction? plast)
+     (unless (prop-contradiction? pz)
        (reject (err:incorrect-prop
-                "The block's final proposition" plast "q ∧ ¬q" null #f
+                "The block's final proposition" pz "q ∧ ¬q" null #f
                 `["That is, the block must end in a contradiction."] #f)))
      (unless (prop=? prop (prop:not pa))
        (badr "¬p" `((p ,pa)) 'arg #:expect (prop:not pa)))]
+    ;; ----------------------------------------
     [_ (error 'check-derive "internal error: bad justification: ~e" just)]))
 
 (define (lineno-next n)
@@ -611,12 +618,10 @@
        (and (loop a1 b1) (loop a2 b2))]
       [[(prop:iff a1 a2) (prop:iff b1 b2)]
        (and (loop a1 b1) (loop a2 b2))]
-      [[(prop:forall avs as ap) (prop:forall bvs bs bp)]
-       (and (= (length avs) (length bvs))
-            (loop ap bp))]
-      [[(prop:exists avs as ap) (prop:exists bvs bs bp)]
-       (and (= (length avs) (length bvs))
-            (loop ap bp))]
+      [[(prop:forall av as ap) (prop:forall bv bs bp)]
+       (and (loop ap bp))]
+      [[(prop:exists av as ap) (prop:exists bv bs bp)]
+       (and (loop ap bp))]
       [[(prop:atomic a) (prop:atomic b)]
        (equal? a b)]
       [[(? prop:eq?) (? prop:eq?)] #t]
@@ -700,6 +705,16 @@
   `(v (p "The given block ends with a nested block.")
       (h "Block: " ,(rich 'block-ref ref))))
 
+(define (err:vm-multi vm)
+  `(v (p "The variable mapping contains multiple variables."
+         "This rule requires the variable mapping to contain a single variable.")
+      (h "Variable mapping's variables: " ,(rich 'vars (map car vm)))))
+
+(define (err:vm-var q-var vm-var)
+  `(v "The variable mapping must match the quantifier's variable."
+      (h "Quantifier's variable: " ,(rich 'var q-var))
+      (h "Variable mapping's variable: " ,(rich 'var vm-var))))
+
 (define (err:vm-vars q-vars vm-vars)
   `(v "The variable mapping must match the quantifier's variables, in order."
       (h "Quantifier's variables: " ,(rich 'vars q-vars))
@@ -708,6 +723,12 @@
 (define (err:block-need-intro ref)
   `(v (p "The rule requires the block to start with a Let statement,"
          "but the given block has no Let statement.")
+      (h "Block: " ,(rich 'block-ref ref))))
+
+(define (err:block-intro-multi ref)
+  `(v (p "The rule requires the block to start with a Let statement"
+         "with a single variable,"
+         "but the Let statement contains multiple variables.")
       (h "Block: " ,(rich 'block-ref ref))))
 
 (define (err:block-unwanted-intro ref)

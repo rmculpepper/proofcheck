@@ -23,8 +23,8 @@
 (struct prop:or (p q) #:prefab)
 (struct prop:implies (p q) #:prefab)
 (struct prop:iff (p q) #:prefab)
-(struct prop:forall (vs s p) #:prefab)
-(struct prop:exists (vs s p) #:prefab)
+(struct prop:forall (v s p) #:prefab)
+(struct prop:exists (v s p) #:prefab)
 (struct prop:atomic (a) #:prefab)
 
 (struct prop:eq (a b) #:prefab)
@@ -74,8 +74,8 @@
       [(prop:or p q) (format "(~a ∨ ~a)" (loop p) (loop q))]
       [(prop:implies p q) (format "(~a ⇒ ~a)" (loop p) (loop q))]
       [(prop:iff p q) (format "(~a ⇔ ~a)" (loop p) (loop q))]
-      [(prop:forall vs s p) (format "(∀ ~a ∈ ~a, ~a)" (vars->string vs #t) s (loop p))]
-      [(prop:exists vs s p) (format "(∃ ~a ∈ ~a, ~a)" (vars->string vs #t) s (loop p))]
+      [(prop:forall v s p) (format "(∀ ~a ∈ ~a, ~a)" (var->string v) s (loop p))]
+      [(prop:exists v s p) (format "(∃ ~a ∈ ~a, ~a)" (var->string v) s (loop p))]
       [(prop:atomic a) (format "~a" a)]
       [(prop:eq a b) (format "(~a = ~a)" (expr->string a) (expr->string b))]
       [(prop:cmp cmp a b) (format "(~a ~a ~a)" (expr->string a) (cmp->string cmp) (expr->string b))]
@@ -98,8 +98,10 @@
      (format "~a(~a)" fun (string-join (map expr->string args) ", "))]
     [_ (error 'expr->string "internal error: bad expr: ~e" e)]))
 
+(define (var->string v) (symbol->string v))
+
 (define (vars->string vs [tight? #f])
-  (string-join (map symbol->string vs) (if tight? "," ", ")))
+  (string-join (map var->string vs) (if tight? "," ", ")))
 
 (define (exprs->string es)
   (string-join (map expr->string es) ", "))
@@ -117,8 +119,8 @@
       [(prop:or p q) (append (loop p) (loop q))]
       [(prop:implies p q) (append (loop p) (loop q))]
       [(prop:iff p q) (append (loop p) (loop q))]
-      [(prop:forall vs s body) (remove* vs (loop body))]
-      [(prop:exists vs s body) (remove* vs (loop body))]
+      [(prop:forall v s body) (remove* (list v) (loop body))]
+      [(prop:exists v s body) (remove* (list v) (loop body))]
       [(prop:atomic a) null]
       [(prop:eq a b) (append (expr-fvs a env) (expr-fvs b env))]
       [(prop:cmp cmp a b) (append (expr-fvs a env) (expr-fvs b env))]
@@ -153,10 +155,10 @@
       [(prop:or p q) (prop:or (loop p) (loop q))]
       [(prop:implies p q) (prop:implies (loop p) (loop q))]
       [(prop:iff p q) (prop:iff (loop p) (loop q))]
-      [(prop:forall vs s body)
-       (binder-subst prop:forall vs s body vm vmfv)]
-      [(prop:exists vs s body)
-       (binder-subst prop:exists vs s body vm vmfv)]
+      [(prop:forall v s body)
+       (binder-subst prop:forall v s body vm vmfv)]
+      [(prop:exists v s body)
+       (binder-subst prop:exists v s body vm vmfv)]
       [(prop:atomic a) p]
       [(prop:eq a b) (prop:eq (expr-subst a vm vmfv) (expr-subst b vm vmfv))]
       [(prop:cmp cmp a b) (prop:cmp cmp (expr-subst a vm vmfv) (expr-subst b vm vmfv))]
@@ -165,17 +167,15 @@
       [(prop:in e s) (prop:in (expr-subst e vm vmfv) s)]
       [_ (error 'prop-subst "internal error: bad prop: ~e" p)])))
 
-(define (binder-subst constructor vs s body vm0 vmfv)
-  (define vm (filter (lambda (vme) (not (memq (car vme) vs))) vm0))
-  (define vs* (map (lambda (v) (if (memq v vmfv) (fresh v) v)) vs))
-  (cond [(equal? vs vs*)
-         (constructor vs s (prop-subst body vm))]
+(define (binder-subst constructor v s body vm0 vmfv)
+  (define vm (filter (lambda (vme) (not (eq? (car vme) v))) vm0))
+  (define v* (if (memq v vmfv) (fresh v) v))
+  (cond [(equal? v v*)
+         (constructor v s (prop-subst body vm))]
         [else
-         (define vm*
-           (for/list ([v (in-list vs)] [v* (in-list vs*)] #:when (not (eq? v v*)))
-             (cons v (expr:var v*))))
+         (define vm* (list (cons v (expr:var v*))))
          (define body* (prop-subst body vm* null))
-         (constructor vs* s (prop-subst body* vm))]))
+         (constructor v* s (prop-subst body* vm))]))
 
 (define (expr-subst e vm vmfv)
   (let loop ([e e])
