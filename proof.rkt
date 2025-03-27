@@ -457,38 +457,38 @@
                      (h "  " ,(rich 'pattern "a") " = " ,(rich 'expr (cdar vm)))]
             #:expect body*))]
     ;; ----------------------------------------
-    #|
     [(j:elim (app getp initp1) vm dir qrefs)
-
-     FIXME
-
      (define qs (map getp qrefs))
      ;; Part 1: ∀Elim
      (define initp2
-       (cond
-         [vm ;; FIXME: copiedd from ForallElim
-          (define-values (vs s body)
-            (match initp1
-              [(prop:forall vs s body)
-               (values vs s body)]
-              [_ (bad 1 initp1 "∀ x... ∈ S, P(x...)")]))
-          (unless (equal? vs (map car vm))
-            (reject (err:vm-vars vs (map car vm))))
-          (let ([fv (exprs-fvs (map cdr vm) (in-scope))])
-            (when (pair? fv) (reject (err:vm-fv fv))))
-          (prop-subst body vm)]
-         [else initp1]))
+       (cond [vm
+              (define depth (length vm))
+              (define-values (qvars qss body)
+                (let loop ([p initp1] [depth depth] [vacc null] [sacc null])
+                  (cond [(zero? depth)
+                         (values (reverse vacc) (reverse sacc) p)]
+                        [else
+                         (match p
+                           [(prop:forall v s body)
+                            (loop body (sub1 depth) (cons v vacc) (cons s sacc))]
+                           [_ (reject (err:vm-vars (reverse vacc) (map car vm)))])])))
+              (unless (equal? qvars (map car vm))
+                (reject (err:vm-vars qvars (map car vm))))
+              (let ([fv (exprs-fvs (map cdr vm) (in-scope))])
+                (when (pair? fv) (reject (err:vm-fv fv))))
+              ;; FIXME: check each vme ∈ qs
+              (prop-subst body vm)]
+             [else initp1]))
      ;; Part 2: ⇔Elim
      (define initp3
-       (cond
-         [dir
-          (match initp2
-            [(prop:iff pp qq)
-             (case dir
-               [(forward) (prop:implies pp qq)]
-               [(backward) (prop:implies qq pp)])]
-            [_ (bad #f initp2 "p ⇔ q")])]
-         [else initp2]))
+       (cond [dir
+              (match initp2
+                [(prop:iff pp qq)
+                 (case dir
+                   [(forward) (prop:implies pp qq)]
+                   [(backward) (prop:implies qq pp)])]
+                [_ (bad #f initp2 "p ⇔ q")])]
+             [else initp2]))
      ;; Part 3: ⇒Elim
      (define result-prop
        (for/fold ([improp initp3]) ([argp (in-list qs)])
@@ -500,31 +500,30 @@
      (unless (prop=? prop result-prop)
        (badr #:expect result-prop))]
     [(j:intro (and b-ref (app getb b)))
-
-     FIXME
-
      (define-values (intros assumes rest) (split-block b))
-     (define-values (bvs bs)
-       (match intros
-         [(list (intro vs s)) (values vs s)]
-         [(list) (values #f #f)]))
-     (define bbody
-       (let ([last-have
-              (cond [(pair? rest) (last rest)]
-                    [(pair? assumes) (last assumes)]
-                    [else #f])])
-         (match last-have
-           [(derive p _) p]
-           [(assume p) p]
-           [_ (reject (err:block-ends-with-block b-ref))])))
-     (define iiprop
-       (foldr (lambda (a p) (prop:implies a p)) bbody
-              (map assume-p assumes)))
-     (define aiprop
-       (if (pair? bvs) (prop:forall bvs bs iiprop) iiprop))
-     (unless (prop=? prop aiprop)
-       (badr #:expect aiprop))]
-    |#
+     (define rprop
+       (cond [(pair? rest)
+              (match (last rest)
+                [(derive p _) p])]
+             [(pair? assumes)
+              (match (last assumes)
+                [(assume p) p])]
+             [else (reject (err:block-ends-with-block b-ref))])) ;; FIXME
+     (define arprop
+       (foldr (lambda (a p)
+                (match a
+                  [(assume ap) (prop:implies ap p)]))
+              rprop
+              assumes))
+     (define iarprop
+       (foldr (lambda (i p)
+                (match i
+                  [(intro vs s)
+                   (foldr (lambda (v p) (prop:forall v s p)) p vs)]))
+              arprop
+              intros))
+     (unless (prop=? prop iarprop)
+       (badr #:expect iarprop))]
     ;; ----------------------------------------
     [(j:algebra refs)
      (define ps (map getp refs))
