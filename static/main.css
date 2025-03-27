@@ -26,7 +26,7 @@ p, .par {
 
 .outdated {
     border: solid 1pt darkred;
-    margin: 1em;
+    /* margin: 1em; */
     padding: 0.5em;
     background-color: #FFFFE0;
     /* width: 100%; */
@@ -34,7 +34,7 @@ p, .par {
 
 .waiting {
     border: solid 1pt yellow;
-    margin: 1em;
+    /* margin: 1em; */
     padding: 0.5em;
     background-color: #FFFFE0;
     /* width: 100%; */
@@ -42,19 +42,19 @@ p, .par {
 
 .axioms {
     border: solid 1pt gray;
-    margin: 1em;
+    /* margin: 1em; */
     padding: 0pt 1em;
 }
 
 .example {
     border: solid 1pt gray;
-    margin: 1em;
+    /* margin: 1em; */
     padding: 0pt 1em;
 }
 
 #output_inner_area {
     border: solid 1pt gray;
-    margin: 1em;
+    /* margin: 1em; */
     padding: 0.5em;
 }
 

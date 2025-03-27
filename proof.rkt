@@ -25,14 +25,14 @@
 (struct cstate
   (prefix ;; LineNoPrefix
    bs     ;; BlockState
-   goals  ;; (Listof Prop) -- Wants that have not been discharged
+   goals  ;; #f or (Listof Prop) -- Wants that have not been discharged
    last   ;; (U #f Prop CheckState) -- last Derived prop or state of last Block
    ) #:transparent)
 
 (define (cstate-update cs #:bs [bs #f] #:want [want #f] #:have [have #f])
   (match-define (cstate prefix bstate goals last) cs)
-  (let ([goals (if have (remove* (list have) goals) goals)])
-    (cstate prefix (or bs bstate) (if want (cons want goals) goals) (or have last))))
+  (let ([goals (and goals (if have (remove* (list have) goals) goals))])
+    (cstate prefix (or bs bstate) (if want (cons want (or goals null)) goals) (or have last))))
 
 ;; LEnv = Hash[LineNo => Statement]
 
@@ -73,7 +73,7 @@
        (hash-set lenv (ref:axiom n) p)])))
 
 (define (check-block lines lenv b-rule lnprefix)
-  (define cs (cstate lnprefix (block-rule->state b-rule) null #f))
+  (define cs (cstate lnprefix (block-rule->state b-rule) #f #f))
   (check-lines lines lenv b-rule cs))
 
 (define (check-lines lines lenv b-rule cs)

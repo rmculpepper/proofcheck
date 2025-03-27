@@ -86,18 +86,23 @@ Axiom 11: ∀ n,d,q1,r1,q2,r2 ∈ NN, Div(n,d,q1,r1) ⇒ Div(n,d,q2,r2) ⇒ (q1 
 (define (show-cstate cs)
   (define (header ln)
     (if (null? ln) "Main proof list:" `(h "Block #" ,(rich 'lineno ln) ":")))
+  (define (lastprop v)
+    (cond [(prop? v) `((h "Last derived: " ,(rich 'prop v)))] [else null]))
   (match cs
-    [(cstate ln _ #f last)
+    [(cstate ln _ #f (? cstate? last))
      (show-cstate last)]
+    [(cstate ln _ #f (? prop? last))
+     (list `(v ,(header ln) ,@(lastprop last)))]
     [(cstate ln _ '() last)
      (cons `(v ,(header ln)
-               (h "No unsatisfied goals."))
-           (show-cstate last))
-     (show-cstate last)]
+               (h "No unsatisfied goals.")
+               ,@(lastprop last))
+           (show-cstate last))]
     [(cstate ln _ goals last)
      (cons `(v ,(header ln)
                ,@(for/list ([goal (in-list goals)])
-                   `(h "Unsatisfied goal: " ,(rich 'prop goal))))
+                   `(h "Unsatisfied goal: " ,(rich 'prop goal)))
+               ,@(lastprop last))
            (show-cstate last))]
     [_ null]))
 
