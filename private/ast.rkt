@@ -117,7 +117,7 @@
 
 ;; ----------------------------------------
 
-(define (prop-fvs p [env null])
+(define (prop-fvs p env)
   (let loop ([p p])
     (match p
       [(prop:not p) (loop p)]
@@ -125,8 +125,8 @@
       [(prop:or p q) (append (loop p) (loop q))]
       [(prop:implies p q) (append (loop p) (loop q))]
       [(prop:iff p q) (append (loop p) (loop q))]
-      [(prop:forall v s body) (remove* (list v) (loop body))]
-      [(prop:exists v s body) (remove* (list v) (loop body))]
+      [(prop:forall v s body) (prop-fvs body (hash-set env v s))]
+      [(prop:exists v s body) (prop-fvs body (hash-set env v s))]
       [(prop:atomic a) null]
       [(prop:eq a b) (append (expr-fvs a env) (expr-fvs b env))]
       [(prop:cmp cmp a b) (append (expr-fvs a env) (expr-fvs b env))]
@@ -134,26 +134,30 @@
       [(prop:in e s) (expr-fvs e env)]
       [_ (error 'prop-fvs "internal error: bad prop: ~e" p)])))
 
-(define (expr-fvs e [env null])
+(define (expr-fvs e env)
   (let loop ([e e])
     (match e
       [(expr:integer n) null]
       [(expr:object s) null]
-      [(expr:var var) (if (memq var env) null (list var))]
+      [(expr:var var) (if (hash-has-key? env var) null (list var))]
       [(expr:plus a b) (append (loop a) (loop b))]
       [(expr:times a b) (append (loop a) (loop b))]
       [(expr:apply fun args) (exprs-fvs args env)])))
 
-(define (exprs-fvs es [env null])
+(define (exprs-fvs es env)
   (append* (for/list ([e (in-list es)]) (expr-fvs e env))))
 
 ;; ----------------------------------------
 
+;; all-names : Hasheq[Symbol => #t]
 ;; Set by check-proof.
 (define all-names (make-parameter (hasheq)))
-(define in-scope (make-parameter null))
 
-(define (prop-subst p vm [vmfv (exprs-fvs (map cdr vm))])
+;; in-scope : Hasheq[Symbol => Symbol] -- variable to set name
+(define in-scope (make-parameter (hasheq)))
+
+(define (prop-subst p vm)
+  (define vmfv (exprs-fvs (map cdr vm) (hasheq)))
   (let loop ([p p])
     (match p
       [(prop:not p) (prop:not (loop p))]
@@ -166,11 +170,11 @@
       [(prop:exists v s body)
        (binder-subst prop:exists v s body vm vmfv)]
       [(prop:atomic a) p]
-      [(prop:eq a b) (prop:eq (expr-subst a vm vmfv) (expr-subst b vm vmfv))]
-      [(prop:cmp cmp a b) (prop:cmp cmp (expr-subst a vm vmfv) (expr-subst b vm vmfv))]
+      [(prop:eq a b) (prop:eq (expr-subst a vm) (expr-subst b vm))]
+      [(prop:cmp cmp a b) (prop:cmp cmp (expr-subst a vm) (expr-subst b vm))]
       [(prop:pred pred args)
-       (prop:pred pred (for/list ([arg (in-list args)]) (expr-subst arg vm vmfv)))]
-      [(prop:in e s) (prop:in (expr-subst e vm vmfv) s)]
+       (prop:pred pred (for/list ([arg (in-list args)]) (expr-subst arg vm)))]
+      [(prop:in e s) (prop:in (expr-subst e vm) s)]
       [_ (error 'prop-subst "internal error: bad prop: ~e" p)])))
 
 (define (binder-subst constructor v s body vm0 vmfv)
@@ -180,10 +184,10 @@
          (constructor v s (prop-subst body vm))]
         [else
          (define vm* (list (cons v (expr:var v*))))
-         (define body* (prop-subst body vm* null))
+         (define body* (prop-subst body vm*))
          (constructor v* s (prop-subst body* vm))]))
 
-(define (expr-subst e vm vmfv)
+(define (expr-subst e vm)
   (let loop ([e e])
     (match e
       [(expr:integer n) e]
@@ -196,8 +200,10 @@
       [(expr:apply fun args) (expr:apply fun (map loop args))])))
 
 (define (fresh v)
+  (define venv (in-scope))
   (define names (all-names))
   (let loop ([i 1])
     (define vi (string->symbol (format "~a_~a" v i)))
-    (cond [(hash-has-key? names vi) (loop (add1 i))]
+    (cond [(hash-has-key? venv vi) (loop (add1 i))]
+          [(hash-has-key? names vi) (loop (add1 i))]
           [else (all-names (hash-set names vi #t)) vi])))

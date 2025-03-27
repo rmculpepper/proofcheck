@@ -39,6 +39,8 @@
 ;; - maps LineNo to Statement
 ;; - maps Symbol to (Listof (U String Nat 'nat)) --- set name to elements
 
+;; FIXME: set all-names
+
 ;; check-proof : Proof -> CheckState
 ;; Returns prop for complete proof (ends in Derive), #f otherwise.
 (define (check-proof pf)
@@ -72,7 +74,7 @@
       [(setdecl s elems more?)
        (hash-set lenv s elems)]
       [(axiom n p)
-       (let ([fvs (prop-fvs p null)])
+       (let ([fvs (prop-fvs p (hasheq))])
          (unless (null? fvs)
            (reject (err:prop-fv (ref:axiom n) fvs))))
        (hash-set lenv (ref:axiom n) p)])))
@@ -99,32 +101,37 @@
      (begin0 (cstate-update cs
                             #:bs (block-state-check/advance (cstate-bs cs) b-rule 'derive)
                             #:have prop)
+       (check-wf-prop prop lenv)
        (check-derive n prop just lenv))]
     [(want prop)
-     (let ([fvs (prop-fvs prop (in-scope))])
-       (unless (null? fvs)
-         (reject (err:prop-fv #f fvs))))
-     (cstate-update cs #:want prop)]
+     (begin0 (cstate-update cs #:want prop)
+       (check-wf-prop prop lenv))]
     [(assume prop)
      (begin0 (cstate-update cs
                             #:bs (block-state-check/advance (cstate-bs cs) b-rule 'assume)
                             #:have prop)
-       (let ([fvs (prop-fvs prop (in-scope))])
-         (unless (null? fvs)
-           (reject (err:prop-fv #f fvs)))))] 
+       (check-wf-prop prop lenv))]
     [(intro vars s)
      (begin0 (cstate-update cs
                             #:bs (block-state-check/advance (cstate-bs cs) b-rule 'intro))
        (for ([var (in-list vars)])
-         (when (memq var (in-scope))
-           (reject (err:intro-not-fresh var))))
-       (in-scope (append vars (in-scope))))]
+         (when (hash-has-key? (in-scope) var)
+           (reject (err:intro-not-fresh var)))
+         (in-scope (hash-set (in-scope) var s))))]
     [(block rule lines)
      (define bs* (block-state-check/advance (cstate-bs cs) b-rule 'block))
      (parameterize ((in-scope (in-scope))) ;; mutated by Intro
        ;; Don't check how block ends, because that would interfere with
        ;; (or at least complicate) checking partial proofs.
        (cstate-update cs #:bs bs* #:have (check-block lines lenv rule n)))]))
+
+(define (check-wf-prop prop lenv)
+  ;; Check no free variables
+  (let ([fvs (prop-fvs prop (in-scope))])
+    (unless (null? fvs)
+      (reject (err:prop-fv #f fvs))))
+  ;; Check set names FIXME
+  (void))
 
 (define (block-rule->state rule)
   (case rule
@@ -265,6 +272,7 @@
          [(derive p j) p]
          [(want _) (reject (err:ref-is-want r))]
          [(block _ _) (reject (err:ref-is-block r))]
+         [(intro _ _) (reject (err:ref-is-intro r))]
          [_ (error* "internal error: bad proposition reference")])]))
   (define (getb r)
     (match r
@@ -461,7 +469,7 @@
        (match prop
          [(prop:exists v s body) (values v s body)]
          [_ (badr "∃ x ∈ S, P(x)")]))
-     (when (memq rv (in-scope))
+     (when (hash-has-key? (in-scope) rv)
        (reject `(v "Variable chosen for existential quantifier is already in scope."
                    (h "Quantifier variable: " ,(rich 'var rv)))))
      (match vm
@@ -719,6 +727,11 @@
 (define (err:ref-is-want ref)
   `(v (p "The justification requires a reference to a proposition,"
          "but the given line number refers to a Want statement.")
+      (h "Reference: " ,(rich 'ref ref))))
+
+(define (err:ref-is-intro ref)
+  `(v (p "The justification requires a reference to a proposition,"
+         "but the given line number refers to a Let statement.")
       (h "Reference: " ,(rich 'ref ref))))
 
 (define (err:ref-not-block ref)

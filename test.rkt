@@ -247,7 +247,7 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
   1.2 Assume GE(m, 0)
   1.3 Derive GE(m,0) or X by OrIntroL on #1.2
 2 Derive GE(m,0) or X by ExistsElim on Axiom 1, #1"
-      #:err #rx"witness variable")
+      #:err #rx"not in scope")
 
 (terr "Axiom 1: exists n in NN, GE(n, 0)
 Axiom 2: forall n in NN, GE(n,0) implies Z(0)
