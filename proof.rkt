@@ -51,7 +51,7 @@
      (when goal
        (parameterize ((error-info (cons (err:in-theorem) (error-info))))
          (check-wf-prop goal lenv)))
-     (define cs (check-block lines lenv 'top null))
+     (define cs (check-block lines lenv 'top null #t))
      (when qed?
        (define last-derived-prop ;; FIXME: =? (cstate-last cs)
          (match (and (pair? lines) (last lines))
@@ -82,23 +82,23 @@
            (reject (err:prop-fv (ref:axiom n) fvs))))
        (hash-set lenv (ref:axiom n) p)])))
 
-(define (check-block lines lenv b-rule lnprefix)
+(define (check-block lines lenv b-rule lnprefix last?)
   (define cs (cstate lnprefix (block-rule->state b-rule) #f #f))
-  (check-lines lines lenv b-rule cs))
+  (check-lines lines lenv b-rule cs last?))
 
-(define (check-lines lines lenv b-rule cs)
+(define (check-lines lines lenv b-rule cs last?)
   (match lines
     [(list)
      cs]
     [(cons (line n stmt) lines)
      (define cs*
        (parameterize ((error-info (list (err:on-line n stmt))))
-         (check-statement n stmt lenv b-rule cs)))
-     (check-lines lines (hash-set lenv n stmt) b-rule cs*)]))
+         (check-statement n stmt lenv b-rule cs (and last? (null? lines)))))
+     (check-lines lines (hash-set lenv n stmt) b-rule cs* last?)]))
 
-;; check-statement : LineNo Statement LEnv BlockRule CheckState -> CheckState
+;; check-statement : LineNo Statement LEnv BlockRule CheckState Boolean -> CheckState
 ;; Returns list of special statement types allowed *after* this statement.
-(define (check-statement n stmt lenv b-rule cs)
+(define (check-statement n stmt lenv b-rule cs last?)
   (match stmt
     [(derive prop just)
      (begin0 (cstate-update cs
@@ -127,9 +127,11 @@
     [(block rule lines)
      (define bs* (block-state-check/advance (cstate-bs cs) b-rule 'block))
      (parameterize ((in-scope (in-scope))) ;; mutated by Intro
-       ;; Don't check how block ends, because that would interfere with
-       ;; (or at least complicate) checking partial proofs.
-       (define sub-cs (check-block lines lenv rule n))
+       (define sub-cs (check-block lines lenv rule n last?))
+       (unless last?
+         ;; Only check how block ends if nothing follows it, because
+         ;; otherwise it would interfere with checking partial proofs.
+         (block-state-check/advance (cstate-bs sub-cs) rule 'end))
        (cstate-update cs #:bs bs* #:have sub-cs))]))
 
 (define (check-wf-prop prop lenv)
@@ -150,14 +152,14 @@
     [(#f) 'i/a-a*-d*]))
 
 ;; BlockRule = #f | 'forall | 'exists | 'implies | 'contradiction
-;; BlockState = (cons BlockRE BlockRule)
-;; BlockRE =
+;; BlockState
 ;; - 'i/a-a*-d*
 ;; - 'i-a-d*
 ;; - 'i-d*
 ;; - 'a-d*
 ;; - 'a*-d*
-;; - 'd*
+;; - 'd*    -- last statement was not Derive
+;; - 'd:d*  -- last statement was Derive
 
 (define (block-state-check/advance state b-rule stype)
   (match stype
@@ -179,23 +181,39 @@
        [_ (reject `(v ,not-allowed
                       ,@(err:block-misplaced 'assume state b-rule)
                       ,@(err:block-wanted state b-rule)))])]
-    [(or 'block 'derive)
-     (define not-allowed
-       (case stype
-         [(block) "Block statement is not allowed here."]
-         [(derive) "Derive statement is not allowed here."]))
+    ['block
+     (define not-allowed "Block statement is not allowed here.")
      (match state
-       [(or 'a*-d* 'd*) 'd*]
+       [(or 'a*-d* 'd:d* 'd*) 'd*]
        [_ (reject `(v ,not-allowed
                       ,@(err:block-misplaced stype state b-rule)
-                      ,@(err:block-wanted state b-rule)))])]))
+                      ,@(err:block-wanted state b-rule)))])]
+    ['derive
+     (define not-allowed "Derive statement is not allowed here.")
+     (match state
+       [(or 'a*-d* 'd* 'd:d*) 'd:d*]
+       [_ (reject `(v ,not-allowed
+                      ,@(err:block-misplaced stype state b-rule)
+                      ,@(err:block-wanted state b-rule)))])]
+    ['end
+     (define not-allowed
+       `(h "Block for " ,(rich 'rule (block-rule-name b-rule)) " is incomplete."))
+     (match state
+       ['i/a-a*-d* (reject `(v ,not-allowed (h "Expected a Let or Assume statement next.")))]
+       [(or 'i-a-d* 'i-d*) (reject `(v ,not-allowed (h "Expected a Let statement next.")))]
+       ['a-d* (reject `(v ,not-allowed (h "Expected an Assume statement next.")))]
+       ['a*-d* (reject `(v ,not-allowed (h "Expected an Assume or Derive statement next.")))]
+       ['d* (reject `(v ,not-allowed (h "Expected a Derive statement next.")))]
+       ['d:d* 'd:d*])]
+    ))
 
-(define (block-state->rule state)
+(define (block-rule-name state)
   (match state
     ['forall "∀Intro"]
     ['exists "∃Elim"]
     ['implies "⇒Intro"]
-    ['contradiction "Contradiction"]))
+    ['contradiction "Contradiction"]
+    [#f "Intro"]))
 
 (define (err:block-misplaced stype state b-rule)
   (match stype
@@ -216,10 +234,10 @@
     ['i/a-a*-d*
      (list `(p "Expected either a Let statement or Assume statement here."))]
     [(or 'i-a-d* 'i-d*)
-     (list `(p "A block for " ,(rich 'rule (block-state->rule b-rule))
+     (list `(p "A block for " ,(rich 'rule (block-rule-name b-rule))
                " should have a Let statement here."))]
     ['a-d*
-     (list `(p "A block for " ,(rich 'rule (block-state->rule b-rule))
+     (list `(p "A block for " ,(rich 'rule (block-rule-name b-rule))
                " should have an Assume statement here."))]
     [(or 'a*-d* 'd*) null]))
 
