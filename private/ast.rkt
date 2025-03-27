@@ -7,6 +7,7 @@
          racket/string)
 (provide (all-defined-out))
 
+(struct setdecl (s elems more?) #:prefab)
 (struct axiom (n p) #:prefab)
 (struct setgoal (prop) #:prefab)
 (struct line (n s) #:prefab)

@@ -26,8 +26,11 @@
    End-of-Proposition
    End-of-Justification
    NEWLINE
-   LP
-   RP
+   LEFTPAREN
+   RIGHTPAREN
+   LEFTBRACE
+   RIGHTBRACE
+   ELLIPSES
    HASH
    QED
 
@@ -120,8 +123,10 @@
    [(:: "'" $A (:+ $AN) "'")
     (token-OBJECTNAME (let ([s lexeme]) (substring s 1 (sub1 (string-length s)))))]
 
-   ["(" 'LP]
-   [")" 'RP]
+   ["(" 'LEFTPAREN]
+   [")" 'RIGHTPAREN]
+   ["{" 'LEFTBRACE]
+   ["}" 'RIGHTBRACE]
    ["#" 'HASH]
 
    ["Derive" 'DERIVE]
@@ -225,6 +230,7 @@
 
    ["in" 'IN]
    ["for" 'FOR]
+   ["..." 'ELLIPSES]
 
    ["NN" (token-IDENTIFIER 'ℕ)]
 
@@ -294,7 +300,7 @@
      #:when (memq name '(NEWLINE EOF))
      #f]
     [(list* (token name) _)
-     #:when (memq name '(AXIOM THEOREM QED))
+     #:when (memq name '(AXIOM DECLARE THEOREM QED))
      (parse-line* toks)]
     [(list* (and tok (token name)) toks)
      #:when (memq name '(INTEGER LINENUMBER))
@@ -410,10 +416,22 @@
    (grammar
 
     [Line
+     [(SetDecl) $1]
      [(AxiomDecl) $1]
      [(THEOREM COLON Prop) (setgoal $3)]
      [(QED) (qed)]
      [(ProofLine) $1]]
+
+    [SetDecl
+     [(DECLARE IDENTIFIER EQ LEFTBRACE SetElems RIGHTBRACE)
+      (setdecl $2 (car $5) (cdr $5))]]
+    [SetElems
+     [(ELLIPSES)
+      (cons null #t)]
+     [(OBJECTNAME)
+      (cons (list $1) #f)]
+     [(OBJECTNAME COMMA SetElems)
+      (cons (cons $1 (car $3)) (cdr $3))]]
 
     [AxiomDecl
      [(AXIOM INTEGER COLON Prop)
@@ -524,7 +542,7 @@
       (foldr (lambda (v prop) (prop:forall v $4 prop)) $6 $2)]
      [(EXISTS Variable+ IN Set COMMA Prop)
       (foldr (lambda (v prop) (prop:exists v $4 prop)) $6 $2)]
-     [(LP Prop RP) $2]
+     [(LEFTPAREN Prop RIGHTPAREN) $2]
 
      [(Expr EQ Expr)
       (prop:eq $1 $3)]
@@ -536,7 +554,7 @@
       (prop:cmp 'ge $1 $3)]
      [(Expr LE Expr)
       (prop:cmp 'le $1 $3)]
-     [(IDENTIFIER LP Expr+ RP)
+     [(IDENTIFIER LEFTPAREN Expr+ RIGHTPAREN)
       (prop:pred $1 $3)]
      [(Expr IN Set)
       (prop:in $1 $3)]
@@ -554,9 +572,9 @@
       (expr:plus $1 $3)]
      [(Expr TIMES Expr)
       (expr:times $1 $3)]
-     [(VARIABLE LP Expr+ RP)
+     [(VARIABLE LEFTPAREN Expr+ RIGHTPAREN)
       (expr:apply $1 $3)]
-     [(LP Expr RP)
+     [(LEFTPAREN Expr RIGHTPAREN)
       $2]]
 
     [Set
@@ -634,13 +652,17 @@
     (match v
       [(? axiom? a)
        (reject `(v (h "Axiom declaration not allowed here.")
-                   (p "All Axiom declarations must come before"
-                      "the Theorem declaration or the first proof line.")))]
+                   (p "All declarations must come before"
+                      "the Theorem statement or the first proof line.")))]
+      [(? setdecl? d)
+       (reject `(v (h "Set declaration not allowed here.")
+                   (p "All declarations must come before"
+                      "the Theorem statement or the first proof line.")))]
       [(? setgoal?)
-       (reject `(v (h "Theorem declaration not allowed here.")
+       (reject `(v (h "Theorem statement not allowed here.")
                    ,(if goal?
-                        `(p "Only one Theorem declaration is allowed.")
-                        `(p "The Theorem declaration must come before"
+                        `(p "Only one Theorem statement is allowed.")
+                        `(p "The Theorem statement must come before"
                             "the first proof line."))))]
       [(? line?)
        (reject `(v (h "Proof line not allowed here.")
@@ -649,6 +671,8 @@
     (match lines
       [(cons (? axiom? a) lines)
        (axloop lines (cons a acc))]
+      [(cons (? setdecl? d) lines)
+       (axloop lines (cons d acc))]
       [lines (values (reverse acc) lines)]))
   (define (thmloop lines)
     (match lines
@@ -657,7 +681,7 @@
       [lines (values #f lines)]))
   (define (loop lines lastn goal? acc)
     (match lines
-      [(cons (? axiom? a) lines) (wrong a)]
+      [(cons (? axiom? a) lines) (wrong a goal?)]
       [(cons (line n stmt) lines)
        (define-values (n* lastn*)
          (drop-common-prefix n lastn))
@@ -689,7 +713,7 @@
          (reject `(v (h "QED not allowed here.")
                      (p "Only one QED is allowed."))))
        (qedloop lines goal? #t)]
-      [(list* v lines) (wrong v)]))
+      [(list* v lines) (wrong v goal?)]))
   (define-values (decls lines2) (axloop lines null))
   (define-values (goal-prop lines3) (thmloop lines2))
   (define goal? (and goal-prop #t))

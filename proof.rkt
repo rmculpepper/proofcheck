@@ -34,7 +34,10 @@
   (let ([goals (and goals (if have (remove* (list have) goals) goals))])
     (cstate prefix (or bs bstate) (if want (cons want (or goals null)) goals) (or have last))))
 
-;; LEnv = Hash[LineNo => Statement]
+;; LEnv = Hash
+;; - maps AxiomRef to Prop
+;; - maps LineNo to Statement
+;; - maps Symbol to (Listof (U String Nat 'nat)) --- set name to elements
 
 ;; check-proof : Proof -> CheckState
 ;; Returns prop for complete proof (ends in Derive), #f otherwise.
@@ -66,6 +69,8 @@
 (define (check-decls decls)
   (for/fold ([lenv (hash)]) ([decl (in-list decls)])
     (match decl
+      [(setdecl s elems more?)
+       (hash-set lenv s elems)]
       [(axiom n p)
        (let ([fvs (prop-fvs p null)])
          (unless (null? fvs)
