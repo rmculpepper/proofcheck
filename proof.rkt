@@ -129,7 +129,8 @@
      (parameterize ((in-scope (in-scope))) ;; mutated by Intro
        ;; Don't check how block ends, because that would interfere with
        ;; (or at least complicate) checking partial proofs.
-       (cstate-update cs #:bs bs* #:have (check-block lines lenv rule n)))]))
+       (define sub-cs (check-block lines lenv rule n))
+       (cstate-update cs #:bs bs* #:have sub-cs))]))
 
 (define (check-wf-prop prop lenv)
   ;; Check no free variables
@@ -187,8 +188,7 @@
        [(or 'a*-d* 'd*) 'd*]
        [_ (reject `(v ,not-allowed
                       ,@(err:block-misplaced stype state b-rule)
-                      ,@(err:block-wanted state b-rule)))])]
-    ))
+                      ,@(err:block-wanted state b-rule)))])]))
 
 (define (block-state->rule state)
   (match state
