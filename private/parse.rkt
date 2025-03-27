@@ -224,6 +224,7 @@
    ["backward" 'BACKWARD]
 
    ["in" 'IN]
+   ["for" 'FOR]
 
    ["NN" (token-IDENTIFIER 'ℕ)]
 

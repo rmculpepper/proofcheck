@@ -17,6 +17,7 @@ h1, h2, h3 {
 
 p, .par {
     max-width: 75ex;
+    margin: 1ex 0pt;
 }
 
 .warning {
@@ -67,6 +68,11 @@ p, .par {
 }
 .check_bad {
     background-color: #FFEEEE;
+}
+
+.rt_vp {
+    margin: 1ex 0pt;
+    border: dotted 1pt gray;
 }
 
 .rt_h {

@@ -66,32 +66,51 @@ Axiom 11: ∀ n,d,q1,r1,q2,r2 ∈ NN, Div(n,d,q1,r1) ⇒ Div(n,d,q2,r2) ⇒ (q1 
                          ((error-display-handler) (exn-message e) e)
                          (escape (hash 'v 1 'format "text" 'error (exn-message e))))])
         (define pf (string->proof proof-text #:prefix axioms6))
-        (define dprop (check-proof pf))
+        (define cs (check-proof pf))
         (define msg
           (cond [(proof-qed? pf)
                  `(v "Proof complete."
-                     (h "Theorem: " ,(rich 'prop dprop)))]
+                     (h "Theorem: " ,(rich 'prop (cstate-last cs))))]
                 [(proof-goal pf)
                  `(v (h "No errors were found, but the proof is incomplete.")
                      (p "The proof is incomplete because there was a Theorem declaration"
                         "but the proof does not end with QED.")
-                     ,@(if dprop `[(h "Last derived: " ,(rich 'prop dprop))] '[]))]
+                     (v+ ,@(show-cstate cs)))]
                 [else
                  `(v (h "No errors were found.")
-                     ,@(if dprop `[(h "Last derived: " ,(rich 'prop dprop))] '[]))]))
+                     (v+ ,@(show-cstate cs)))]))
         (define text (rich-text->string msg))
         (define html (xexpr->string ((rich-text->xexpr wrap-div) msg)))
         (hash 'v 1 'format "html" 'pass text 'passh html)))))
+
+(define (show-cstate cs)
+  (define (header ln)
+    (if (null? ln) "Main proof list:" `(h "Block #" ,(rich 'lineno ln) ":")))
+  (match cs
+    [(cstate ln _ #f last)
+     (show-cstate last)]
+    [(cstate ln _ '() last)
+     (cons `(v ,(header ln)
+               (h "No unsatisfied goals."))
+           (show-cstate last))
+     (show-cstate last)]
+    [(cstate ln _ goals last)
+     (cons `(v ,(header ln)
+               ,@(for/list ([goal (in-list goals)])
+                   `(h "Unsatisfied goal: " ,(rich 'prop goal))))
+           (show-cstate last))]
+    [_ null]))
 
 (define ((rich-text->xexpr wrap) rt)
   (match rt
     [(? string? s) (wrap (list s))]
     [(? rich? r) (wrap (list (rich->xexpr r)))]
-    [(cons 'v+ rts) (wrap (map (rich-text->xexpr wrap-div) rts))]
+    [(cons 'v+ rts) (wrap (map (rich-text->xexpr wrap-divp) rts))]
     [(cons 'v rts) (wrap (map (rich-text->xexpr wrap-div) rts))]
     [(cons 'h rts) (wrap (map (rich-text->xexpr wrap-span) rts))]
     [(cons 'p rts) (wrap-p (add-between (map (rich-text->xexpr wrap-span) rts) " "))]))
 
+(define (wrap-divp xs) `(div ([class "rt_vp"]) ,@xs))
 (define (wrap-div xs) `(div ([class "rt_v"]) ,@xs))
 (define (wrap-span xs) `(span ([class "rt_h"]) ,@xs))
 (define (wrap-p xs) `(div ([class "rt_p par"]) ,@xs))

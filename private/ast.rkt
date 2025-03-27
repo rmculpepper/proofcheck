@@ -32,6 +32,11 @@
 (struct prop:pred (pred args) #:prefab)
 (struct prop:in (e s) #:prefab)
 
+(define (prop? v)
+  (or (prop:not? v) (prop:and? v) (prop:or? v) (prop:implies? v) (prop:iff? v)
+      (prop:forall? v) (prop:exists? v) (prop:atomic? v)
+      (prop:eq? v) (prop:cmp? v) (prop:pred? v) (prop:in? v)))
+
 (struct expr:integer (n) #:prefab)
 (struct expr:object (s) #:prefab)
 (struct expr:var (var) #:prefab)

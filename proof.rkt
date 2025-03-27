@@ -16,25 +16,39 @@
          (all-from-out "private/error.rkt")
          string->proof
          (struct-out proof)
+         (struct-out cstate)
          check-proof)
 
 ;; ============================================================
 
+;; CheckState
+(struct cstate
+  (prefix ;; LineNoPrefix
+   bs     ;; BlockState
+   goals  ;; (Listof Prop) -- Wants that have not been discharged
+   last   ;; (U #f Prop CheckState) -- last Derived prop or state of last Block
+   ) #:transparent)
+
+(define (cstate-update cs #:bs [bs #f] #:want [want #f] #:have [have #f])
+  (match-define (cstate prefix bstate goals last) cs)
+  (let ([goals (if have (remove* (list have) goals) goals)])
+    (cstate prefix (or bs bstate) (if want (cons want goals) goals) (or have last))))
+
 ;; LEnv = Hash[LineNo => Statement]
 
-;; check-proof : Proof -> #f or Prop
+;; check-proof : Proof -> CheckState
 ;; Returns prop for complete proof (ends in Derive), #f otherwise.
 (define (check-proof pf)
   (match pf
     [(proof decls goal lines qed?)
      (define lenv (check-decls decls))
-     (check-block lines lenv 'top)
+     (define cs (check-block lines lenv 'top null))
      ;; (check-goal goal lenv)
-     (define last-derived-prop
-       (match (and (pair? lines) (last lines))
-         [(line ln (derive p _)) p]
-         [_ #f]))
      (when qed?
+       (define last-derived-prop ;; FIXME: =? (cstate-last cs)
+         (match (and (pair? lines) (last lines))
+           [(line ln (derive p _)) p]
+           [_ #f]))
        (unless last-derived-prop
          (reject
           `(v (h "Incorrect proof (QED failed).")
@@ -47,7 +61,7 @@
                  "the proposition from the Theorem declaration.")
               (h "Theorem: " ,(rich 'prop goal))
               (h "Last derived: " ,(rich 'prop last-derived-prop))))))
-     last-derived-prop]))
+     cs]))
 
 (define (check-decls decls)
   (for/fold ([lenv (hash)]) ([decl (in-list decls)])
@@ -58,48 +72,54 @@
            (reject (err:prop-fv (ref:axiom n) fvs))))
        (hash-set lenv (ref:axiom n) p)])))
 
-(define (check-block lines lenv b-rule)
-  (check-lines lines lenv (block-rule->state b-rule) b-rule))
+(define (check-block lines lenv b-rule lnprefix)
+  (define cs (cstate lnprefix (block-rule->state b-rule) null #f))
+  (check-lines lines lenv b-rule cs))
 
-(define (check-lines lines lenv state b-rule)
+(define (check-lines lines lenv b-rule cs)
   (match lines
     [(list)
-     (void)]
+     cs]
     [(cons (line n stmt) lines)
-     (define state*
+     (define cs*
        (parameterize ((error-info (list (err:line n stmt))))
-         (check-statement n stmt lenv state b-rule)))
-     (check-lines lines (hash-set lenv n stmt) state* b-rule)]))
+         (check-statement n stmt lenv b-rule cs)))
+     (check-lines lines (hash-set lenv n stmt) b-rule cs*)]))
 
-;; check-statement : LineNo Statement LEnv BlockState BlockRule -> BlockState
+;; check-statement : LineNo Statement LEnv BlockRule CheckState -> CheckState
 ;; Returns list of special statement types allowed *after* this statement.
-(define (check-statement n stmt lenv state b-rule)
+(define (check-statement n stmt lenv b-rule cs)
   (match stmt
     [(derive prop just)
-     (begin0 (block-state-check/advance state b-rule 'derive)
+     (begin0 (cstate-update cs
+                            #:bs (block-state-check/advance (cstate-bs cs) b-rule 'derive)
+                            #:have prop)
        (check-derive n prop just lenv))]
     [(want prop)
      (let ([fvs (prop-fvs prop (in-scope))])
        (unless (null? fvs)
          (reject (err:prop-fv #f fvs))))
-     state]
+     (cstate-update cs #:want prop)]
     [(assume prop)
-     (begin0 (block-state-check/advance state b-rule 'assume)
+     (begin0 (cstate-update cs
+                            #:bs (block-state-check/advance (cstate-bs cs) b-rule 'assume)
+                            #:have prop)
        (let ([fvs (prop-fvs prop (in-scope))])
          (unless (null? fvs)
            (reject (err:prop-fv #f fvs)))))] 
     [(intro vars s)
-     (begin0 (block-state-check/advance state b-rule 'intro)
+     (begin0 (cstate-update cs
+                            #:bs (block-state-check/advance (cstate-bs cs) b-rule 'intro))
        (for ([var (in-list vars)])
          (when (memq var (in-scope))
            (reject (err:intro-not-fresh var))))
        (in-scope (append vars (in-scope))))]
     [(block rule lines)
-     (begin0 (block-state-check/advance state b-rule 'block)
-       (parameterize ((in-scope (in-scope))) ;; mutated by Intro
-         ;; Don't check how block ends, because that would interfere with
-         ;; (or at least complicate) checking partial proofs.
-         (check-block lines lenv rule)))]))
+     (define bs* (block-state-check/advance (cstate-bs cs) b-rule 'block))
+     (parameterize ((in-scope (in-scope))) ;; mutated by Intro
+       ;; Don't check how block ends, because that would interfere with
+       ;; (or at least complicate) checking partial proofs.
+       (cstate-update cs #:bs bs* #:have (check-block lines lenv rule n)))]))
 
 (define (block-rule->state rule)
   (case rule

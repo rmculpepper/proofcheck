@@ -20,10 +20,10 @@
 (define (error* fmt . args)
   (define info (error-info))
   (define msg (apply format fmt args))
-  (reject0 (cons 'v+ (append (reverse (error-info)) (list msg)))))
+  (reject0 (cons 'v (append (reverse (error-info)) (list msg)))))
 
 (define (reject . rts)
-  (reject0 (cons 'v+ (append (reverse (error-info)) rts))))
+  (reject0 (cons 'v (append (reverse (error-info)) rts))))
 
 (define (reject0 rt) ((current-reject) rt))
 
