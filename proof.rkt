@@ -38,6 +38,7 @@
 ;; - maps AxiomRef to Prop
 ;; - maps LineNo to Statement
 ;; - maps Symbol to (Listof (U String Nat 'nat)) --- set name to elements
+(define base-lenv (hash 'ℕ (list 'nat)))
 
 ;; FIXME: set all-names
 
@@ -47,8 +48,10 @@
   (match pf
     [(proof decls goal lines qed?)
      (define lenv (check-decls decls))
+     (when goal
+       (parameterize ((error-info (cons (err:in-theorem) (error-info))))
+         (check-wf-prop goal lenv)))
      (define cs (check-block lines lenv 'top null))
-     ;; (check-goal goal lenv)
      (when qed?
        (define last-derived-prop ;; FIXME: =? (cstate-last cs)
          (match (and (pair? lines) (last lines))
@@ -69,7 +72,7 @@
      cs]))
 
 (define (check-decls decls)
-  (for/fold ([lenv (hash)]) ([decl (in-list decls)])
+  (for/fold ([lenv base-lenv]) ([decl (in-list decls)])
     (match decl
       [(setdecl s elems more?)
        (hash-set lenv s elems)]
@@ -89,7 +92,7 @@
      cs]
     [(cons (line n stmt) lines)
      (define cs*
-       (parameterize ((error-info (list (err:line n stmt))))
+       (parameterize ((error-info (list (err:on-line n stmt))))
          (check-statement n stmt lenv b-rule cs)))
      (check-lines lines (hash-set lenv n stmt) b-rule cs*)]))
 
@@ -114,10 +117,13 @@
     [(intro vars s)
      (begin0 (cstate-update cs
                             #:bs (block-state-check/advance (cstate-bs cs) b-rule 'intro))
-       (for ([var (in-list vars)])
-         (when (hash-has-key? (in-scope) var)
-           (reject (err:intro-not-fresh var)))
-         (in-scope (hash-set (in-scope) var s))))]
+       (cond [(hash-ref lenv s #f)
+              => (lambda (elems)
+                   (for ([var (in-list vars)])
+                     (when (hash-has-key? (in-scope) var)
+                       (reject (err:intro-not-fresh var)))
+                     (in-scope (hash-set (in-scope) var elems))))]
+             [else (reject (err:not-declared-set s))]))]
     [(block rule lines)
      (define bs* (block-state-check/advance (cstate-bs cs) b-rule 'block))
      (parameterize ((in-scope (in-scope))) ;; mutated by Intro
@@ -394,8 +400,7 @@
           [(prop:forall v s body)
            (unless (equal? v vmv)
              (reject (err:vm-var v vmv)))
-           (let ([fv (expr-fvs vme (in-scope))])
-             (when (pair? fv) (reject (err:vm-fv fv))))
+           (check-vm-expr vme s lenv)
            (define body* (prop-subst body vm))
            (unless (prop=? prop body*)
              (badr "P(a)"
@@ -435,7 +440,13 @@
      (define-values (hintros hassumes hrest) (split-block b))
      (define hv
        (match hintros
-         [(list (intro (list hv) hs)) hv] ;; FIXME: check hs = s ?
+         [(list (intro (list hv) hs))
+          (unless (eq? hs ps)
+            (reject `(v (p "The set name in the block's Let statement does not match"
+                           "the set name in the quantifier.")
+                        (h "In block: " ,(rich 'program-text hs))
+                        (h "In quantifier: " ,(rich 'program-text ps)))))
+          hv]
          [(list (intro hvs hs)) (reject (err:block-intro-multi b-ref))]
          [_ (reject (err:block-need-intro b-ref))]))
      (define body* (prop-subst pbody (list (cons pv (expr:var hv)))))
@@ -476,10 +487,7 @@
        [(list (cons vv ve))
         (unless (equal? vv rv)
           (reject (err:vm-var rv vv)))
-        ;; FIXME: check ve ∈ rs
-        (let ([fv (expr-fvs ve (in-scope))])
-          (when (pair? fv)
-            (reject (err:vm-fv fv))))]
+        (check-vm-expr ve rs lenv)]
        [_ (reject (err:vm-multi vm))])
      (define body* (prop-subst rbody vm))
      (unless (prop=? p body*)
@@ -507,9 +515,8 @@
                            [_ (reject (err:vm-vars (reverse vacc) (map car vm)))])])))
               (unless (equal? qvars (map car vm))
                 (reject (err:vm-vars qvars (map car vm))))
-              (let ([fv (exprs-fvs (map cdr vm) (in-scope))])
-                (when (pair? fv) (reject (err:vm-fv fv))))
-              ;; FIXME: check each vme ∈ qs
+              (for ([vme (in-list (map cdr vm))] [qs (in-list qss)])
+                (check-vm-expr vme qs lenv))
               (prop-subst body vm)]
              [else initp1]))
      ;; Part 2: ⇔Elim
@@ -614,6 +621,17 @@
     ;; ----------------------------------------
     [_ (error 'check-derive "internal error: bad justification: ~e" just)]))
 
+(define (check-vm-expr e s lenv #:env [env (in-scope)])
+  ;; Check e has no free vars
+  (let ([fvs (expr-fvs e env)])
+    (when (pair? fvs) (reject (err:vm-fv fvs))))
+  ;; Check e ∈ s
+  (cond [(hash-ref lenv s #f)
+         => (lambda (elems)
+              (unless (expr-in-set-elems? e env elems)
+                (reject (err:expr-not-in-set e s))))]
+        [else (reject (err:not-declared-set s))]))
+
 (define (lineno-next n)
   (append (drop-right n 1) (list (add1 (last n)))))
 
@@ -681,8 +699,11 @@
 
 ;; ============================================================
 
-(define (err:line ln [stmt #f])
+(define (err:on-line ln [stmt #f])
   `(h "Error on line labeled #" ,(rich 'lineno ln) ":"))
+
+(define (err:in-theorem)
+  `(h "Error in Theorem statement."))
 
 (define (err:rule just)
   `(h "Incorrect use of " ,(rich 'rule (justification-rule-name just))))
@@ -819,3 +840,12 @@
          "logical structure as the first argument. In the second case, all of"
          "the remaining arguments must be equations.")
       (h "Instead found: " ,(rich 'prop prop))))
+
+(define (err:not-declared-set s)
+  `(v "The given identifier is not declared as a set name."
+      (h "Identifier: " ,(rich 'program-text (format "~a" s)))))
+
+(define (err:expr-not-in-set e s)
+  `(v "The expression does not represent a member of the given set."
+      (h "Expression: " ,(rich 'expr e))
+      (h "Set name: " ,(rich 'program-text (format "~a" s)))))

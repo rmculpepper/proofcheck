@@ -70,16 +70,19 @@
 
 (terr
  #:err #rx"already in scope" ;; Let
- "1 Block \n 1.1 Let x in A \n 1.2 Block \n 1.2.1 Let x in B")
+ "1 Block \n 1.1 Let x in NN \n 1.2 Block \n 1.2.1 Let x in NN")
 
 (terr
  #:err #rx"within a block"
- "1 Let x in A")
+ "1 Let x in NN")
 
 (terr
  #:err #rx"within a block"
- "1 Assume A")
+ "1 Assume NN")
 
+(terr
+ #:err #rx"not declared as a set name"
+ "1 Block \n 1.1 Let x in A")
 
 ;; ----------------------------------------
 ;; check-derive
@@ -137,7 +140,7 @@
       #:err (badarg))
 (terr "Axiom 1: A implies B \n Axiom 2: A \n 1 Derive C by ImpliesElim on Axiom 1, Axiom 2"
       #:err (badr))
-(terr "1 Block \n 1.1 Let x in S \n 1.2 Assume A
+(terr "1 Block \n 1.1 Let x in NN \n 1.2 Assume A
 2 Derive A implies A by ImpliesIntro on #1" #:err #rx"starts with a Let")
 (terr "1 Block \n 2 Derive A implies A by ImpliesIntro on #1" #:err #rx"single Assume")
 (terr "1 Block \n 1.1 Assume A \n 1.2 Assume B
@@ -170,32 +173,32 @@
 ;; Forall Elim
 ;(tok "Axiom 1: forall a,b in N, R(a,b)
 ;1 Derive R(1,2) by ForAllElim on Axiom 1 with a,b := 1,2")
-(tok "Axiom 1: forall a,b in N, R(a,b)
-1 Derive forall b in N, R(1,b) by ForAllElim on Axiom 1 with a := 1")
+(tok "Axiom 1: forall a,b in NN, R(a,b)
+1 Derive forall b in NN, R(1,b) by ForAllElim on Axiom 1 with a := 1")
 ;(terr "Axiom 1: forall a,b in N, R(a,b)
 ;1 Derive R(1,2) by ForAllElim on Axiom 1 with x,y := 1,2" #:err #rx"mapping must match")
-(terr "Axiom 1: forall a,b in N, R(a,b)
+(terr "Axiom 1: forall a,b in NN, R(a,b)
 1 Derive R(1,2) by ForAllElim on Axiom 1 with x := 1" #:err #rx"mapping must match")
-(terr "Axiom 1: forall n in N, R(n)
+(terr "Axiom 1: forall n in NN, R(n)
 1 Derive R(x) by ForAllElim on Axiom 1 with n := x" #:err #rx"not in scope")
-(terr "Axiom 1: forall n in N, R(n)
+(terr "Axiom 1: forall n in NN, R(n)
 1 Derive R(99) by ForAllElim on Axiom 1 with n := 1" #:err (badr))
 ;; FIXME: handle one vm for multiple explicit foralls!
 
 ;; Forall Intro
-(tok "Axiom 102: ∀ x ∈ X, R(x)
-1 Block \n 1.1 Let a in X \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x := a
-2 Derive forall a in X, R(a) by ForAllIntro on #1")
+(tok "Axiom 102: ∀ x ∈ NN, R(x)
+1 Block \n 1.1 Let a in NN \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x := a
+2 Derive forall a in NN, R(a) by ForAllIntro on #1")
 
 (terr "1 Block \n 1.1 Assume A
-2 Derive forall x in S, A by ForAllIntro on #1" #:err #rx"no Let")
-(terr "1 Block \n 1.1 Let x in S \n 1.2 Assume A
-2 Derive forall x in S, B by ForAllIntro on #1" #:err #rx"not allow.*Assume")
-(terr "1 Block \n 1.1 Let x in S \n 1.2 Block
-2 Derive forall x in S, A by ForAllIntro on #1" #:err #rx"end with a Derive")
-(terr "Axiom 102: ∀ x ∈ X, R(x)
-1 Block \n 1.1 Let a in X \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x := a
-2 Derive forall a in X, C by ForAllIntro on #1" #:err (badr))
+2 Derive forall x in NN, A by ForAllIntro on #1" #:err #rx"no Let")
+(terr "1 Block \n 1.1 Let x in NN \n 1.2 Assume A
+2 Derive forall x in NN, B by ForAllIntro on #1" #:err #rx"not allow.*Assume")
+(terr "1 Block \n 1.1 Let x in NN \n 1.2 Block
+2 Derive forall x in NN, A by ForAllIntro on #1" #:err #rx"end with a Derive")
+(terr "Axiom 102: ∀ x ∈ NN, R(x)
+1 Block \n 1.1 Let a in NN \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x := a
+2 Derive forall a in NN, C by ForAllIntro on #1" #:err (badr))
 
 ;; Exists Elim
 (tok "Axiom 1: exists n in NN, GE(n, 0)
@@ -343,7 +346,7 @@ Axiom 2: GE(2,1)
 
 (terr "Axiom 1: not A
 1 Block
-  1.1 Let x in S
+  1.1 Let x in NN
 2 Derive not(A and B) by Contradiction on #1" #:err #rx"starts with a Let")
 
 (terr "Axiom 1: not A

@@ -207,3 +207,22 @@
     (cond [(hash-has-key? venv vi) (loop (add1 i))]
           [(hash-has-key? names vi) (loop (add1 i))]
           [else (all-names (hash-set names vi #t)) vi])))
+
+;; ----------------------------------------
+
+(define (expr-in-set-elems? e env elems)
+  (match e
+    [(expr:integer n)
+     (and (or (memq n elems) (memq 'nat elems)) #t)]
+    [(expr:object s) (and (member s elems) #t)]
+    [(expr:var var) (equal? (hash-ref env var) elems)] ;; FIXME: order?
+    [(expr:plus a b)
+     (and (expr-in-set-elems? a env '(nat))
+          (expr-in-set-elems? a env '(nat))
+          (memq 'nat elems) #t)]
+    [(expr:times a b)
+     (and (expr-in-set-elems? a env '(nat))
+          (expr-in-set-elems? a env '(nat))
+          (memq 'nat elems) #t)]
+    [(expr:apply fun args) #f] ;; FIXME
+    [_ #f]))
