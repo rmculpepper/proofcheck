@@ -7,7 +7,7 @@
          racket/string)
 (provide (all-defined-out))
 
-(struct setdecl (s elems more?) #:prefab)
+(struct setdecl (s elems) #:prefab)
 (struct axiom (n p) #:prefab)
 (struct setgoal (prop) #:prefab)
 (struct line (n s) #:prefab)
@@ -213,9 +213,11 @@
 (define (expr-in-set-elems? e env elems)
   (match e
     [(expr:integer n)
-     (and (or (memq n elems) (memq 'nat elems)) #t)]
+     (and (or (member n elems) (member 'nat elems)) #t)]
     [(expr:object s) (and (member s elems) #t)]
-    [(expr:var var) (equal? (hash-ref env var) elems)] ;; FIXME: order?
+    [(expr:var var)
+     (for/and ([velem (in-list (hash-ref env var))])
+       (and (member velem elems) #t))]
     [(expr:plus a b)
      (and (expr-in-set-elems? a env '(nat))
           (expr-in-set-elems? a env '(nat))

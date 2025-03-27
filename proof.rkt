@@ -74,7 +74,7 @@
 (define (check-decls decls)
   (for/fold ([lenv base-lenv]) ([decl (in-list decls)])
     (match decl
-      [(setdecl s elems more?)
+      [(setdecl s elems)
        (hash-set lenv s elems)]
       [(axiom n p)
        (let ([fvs (prop-fvs p (hasheq))])

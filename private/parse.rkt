@@ -424,14 +424,11 @@
 
     [SetDecl
      [(DECLARE IDENTIFIER EQ LEFTBRACE SetElems RIGHTBRACE)
-      (setdecl $2 (car $5) (cdr $5))]]
+      (setdecl $2 $5)]]
     [SetElems
-     [(ELLIPSES)
-      (cons null #t)]
-     [(OBJECTNAME)
-      (cons (list $1) #f)]
-     [(OBJECTNAME COMMA SetElems)
-      (cons (cons $1 (car $3)) (cdr $3))]]
+     [(ELLIPSES) (list (gensym))]
+     [(OBJECTNAME) (list $1)]
+     [(OBJECTNAME COMMA SetElems) (cons $1 $3)]]
 
     [AxiomDecl
      [(AXIOM INTEGER COLON Prop)
