@@ -39,7 +39,7 @@
 ;; ----------------------------------------
 
 (tperr
- #:err #rx"wrong number of proposition arguments"
+ #:err #rx"wrong number of arguments"
  "Axiom 1: X and Y \n 1 Derive X by AndElimL on Axiom 1, Axiom 1")
 
 (tperr

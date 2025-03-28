@@ -322,6 +322,8 @@
          [_ (error* "internal error: bad proposition reference")])]))
   (define (getb r)
     (match r
+      [(ref:axiom _)
+       (reject (err:ref-not-block r))]
       [(ref:line ln)
        (match (getln ln)
          [(? block? b) b]

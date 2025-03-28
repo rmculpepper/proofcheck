@@ -488,31 +488,30 @@
      [(FOR CONTRADICTION) 'contradiction]]
 
     [Justification
-     [(BY ANDELIML OnClause) (apply-on "∧ElimL" 1 $3 j:AndElimL)]
-     [(BY ANDELIMR OnClause) (apply-on "∧ElimR" 1 $3 j:AndElimR)]
-     [(BY ANDINTRO OnClause) (apply-on "∧Intro" 2 $3 j:AndIntro)]
-     [(BY ORELIM OnClause)   (apply-on "∨Elim" 3 $3 j:OrElim)]
-     [(BY ORINTROL OnClause) (apply-on "∨IntroL" 1 $3 j:OrIntroL)]
-     [(BY ORINTROR OnClause) (apply-on "∨IntroR" 1 $3 j:OrIntroR)]
-     [(BY IMPELIM OnClause)  (apply-on "⇒Elim" 2 $3 j:ImpElim)]
-     [(BY IMPINTRO OnClause) (apply-on "⇒Intro" 1 $3 j:ImpIntro)]
-     [(BY IFFELIMF OnClause) (apply-on "⇔ElimF" 1 $3 j:IffElimF)]
-     [(BY IFFELIMB OnClause) (apply-on "⇔ElimB" 1 $3 j:IffElimB)]
-     [(BY IFFINTRO OnClause) (apply-on "⇔Intro" 2 $3 j:IffIntro)]
-     [(BY FORALLELIM ON PRef WITH VarMap) (j:ForallElim $4 $6)]
-     [(BY FORALLINTRO ON BRef) (j:ForallIntro $4)]
-     [(BY EXISTSELIM ON PRef COMMA PRef) (j:ExistsElim $4 $6)]
-     [(BY EXISTSINTRO ON PRef WITH VarMap) (j:ExistsIntro $4 $6)]
+     [(BY REPEAT OnClause)   (apply-on $3 "Repeat"  j:Repeat '(p))]
+     [(BY ANDELIML OnClause) (apply-on $3 "∧ElimL"  j:AndElimL '(p))]
+     [(BY ANDELIMR OnClause) (apply-on $3 "∧ElimR"  j:AndElimR '(p))]
+     [(BY ANDINTRO OnClause) (apply-on $3 "∧Intro"  j:AndIntro '(p p))]
+     [(BY ORELIM OnClause)   (apply-on $3 "∨Elim"   j:OrElim '(p p p))]
+     [(BY ORINTROL OnClause) (apply-on $3 "∨IntroL" j:OrIntroL '(p))]
+     [(BY ORINTROR OnClause) (apply-on $3 "∨IntroR" j:OrIntroR '(p))]
+     [(BY IMPELIM OnClause)  (apply-on $3 "⇒Elim"   j:ImpElim '(p p))]
+     [(BY IMPINTRO OnClause) (apply-on $3 "⇒Intro"  j:ImpIntro '(b))]
+     [(BY IFFELIMF OnClause) (apply-on $3 "⇔ElimF"  j:IffElimF '(p))]
+     [(BY IFFELIMB OnClause) (apply-on $3 "⇔ElimB"  j:IffElimB '(p))]
+     [(BY IFFINTRO OnClause) (apply-on $3 "⇔Intro"  j:IffIntro '(p p))]
+     [(BY FORALLINTRO OnClause)   (apply-on $3 "∀Intro" j:ForallIntro '(b))]
+     [(BY EXISTSELIM OnClause)    (apply-on $3 "∃Elim"  j:ExistsElim '(p b))]
+     [(BY MODUSTOLLENS OnClause)  (apply-on $3 "ModusTollens" j:ModusTollens '(p p))]
+     [(BY CONTRADICTION OnClause) (apply-on $3 "Contradiction" j:Contradiction '(b))]
+     [(BY DISJSYLLOGISM OnClause) (apply-on $3 "DisjunctiveSyllogism" j:DisjSyl '(p p))]
+     [(BY ALGEBRA OnClause)  (j:algebra (cdr $3))]
+     ;; ----
+     [(BY FORALLELIM ON Ref WITH VarMap) (j:ForallElim $4 $6)]
+     [(BY EXISTSINTRO ON Ref WITH VarMap) (j:ExistsIntro $4 $6)]
      [(BY ALGEBRA) (j:algebra null)]
-     [(BY ALGEBRA ON PRef+) (j:algebra $4)]
-     [(BY MODUSTOLLENS OnClause) (apply-on "ModusTollens" 2 $3 j:ModusTollens)]
-     [(BY DISJSYLLOGISM OnClause) (apply-on "DisjunctiveSyllogism" 2 $3 j:DisjSyl)]
-     [(BY CONTRADICTION OnClause) (apply-on "Contradiction" 1 $3 j:Contradiction)]
-     [(BY REPEAT OnClause) (apply-on "Repeat" 1 $3 j:Repeat)]
-     [(BY PRef MaybeVarMap MaybeDirection ON PRef+)
-      (j:elim $2 $3 $4 $6)]
-     [(BY INTRO ON BRef)
-      (j:intro $4)]]
+     [(BY Ref MaybeVarMap MaybeDirection ON Ref+) (j:elim $2 $3 $4 $6)]
+     [(BY INTRO ON Ref) (j:intro $4)]]
 
     [MaybeVarMap
      [(WITH VarMap) $2]
@@ -521,16 +520,13 @@
      [(Direction) $1]
      [() #f]]
     [OnClause
-     [(ON PRef+) (cons (cons $n-start-pos $n-end-pos) $2)]]
+     [(ON Ref+) (cons (cons $n-start-pos $n-end-pos) $2)]]
 
-    [PRef
+    [Ref
      [(HASH LineNumber)
       (ref:line $2)]
      [(AXIOM INTEGER)
       (ref:axiom $2)]]
-    [BRef
-     [(HASH LineNumber)
-      (ref:line $2)]]
     [VarMap
      [(Variable+ GETS Expr+)
       (let ([vars $1] [exprs $3])
@@ -544,9 +540,9 @@
      [(FORWARD) 'forward]
      [(BACKWARD) 'backward]]
 
-    [PRef+
-     [(PRef) (list $1)]
-     [(PRef COMMA PRef+) (cons $1 $3)]]
+    [Ref+
+     [(Ref) (list $1)]
+     [(Ref COMMA Ref+) (cons $1 $3)]]
 
     [Prop
      [(NOT Prop)
@@ -623,15 +619,15 @@
 
 ;; ----------------------------------------
 
-(define (apply-on rule n-on on-args0 f . args)
+(define (apply-on on-args0 rulename f argtypes)
   (match-define (cons srcpair on-args) on-args0)
-  (unless (= n-on (length on-args))
-    (reject `(v "Justification has the wrong number of proposition arguments after ON."
-                (h "Rule: " ,(format "~a" rule))
-                (h "Expected: " ,(number->string n-on))
+  (unless (= (length argtypes) (length on-args))
+    (reject `(v "Justification has the wrong number of arguments after ON."
+                (h "Rule: " ,(rich 'rule rulename))
+                (h "Expected: " ,(number->string (length argtypes)))
                 (h "Instead got: " ,(number->string (length on-args)))
                 (h "Source location: " ,(rich 'srcpair srcpair)))))
-  (apply f (append args on-args)))
+  (apply f on-args))
 
 ;; ============================================================
 
