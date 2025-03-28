@@ -102,21 +102,23 @@
   (match stmt
     [(derive prop just)
      (begin0 (cstate-update cs
-                            #:bs (block-state-check/advance (cstate-bs cs) b-rule 'derive)
+                            #:bs (block-state-check/advance cs b-rule 'derive)
                             #:have prop)
        (check-wf-prop prop lenv)
        (check-derive n prop just lenv))]
     [(want prop)
-     (begin0 (cstate-update cs #:want prop)
+     (begin0 (cstate-update cs
+                            #:bs (block-state-check/advance cs b-rule 'want)
+                            #:want prop)
        (check-wf-prop prop lenv))]
     [(assume prop)
      (begin0 (cstate-update cs
-                            #:bs (block-state-check/advance (cstate-bs cs) b-rule 'assume)
+                            #:bs (block-state-check/advance cs b-rule 'assume)
                             #:have prop)
        (check-wf-prop prop lenv))]
     [(intro vars s)
-     (begin0 (cstate-update cs
-                            #:bs (block-state-check/advance (cstate-bs cs) b-rule 'intro))
+     (define stype (if (= (length vars) 1) 'intro1 'intro*))
+     (begin0 (cstate-update cs #:bs (block-state-check/advance cs b-rule stype))
        (cond [(hash-ref lenv s #f)
               => (lambda (elems)
                    (for ([var (in-list vars)])
@@ -125,13 +127,13 @@
                      (in-scope (hash-set (in-scope) var elems))))]
              [else (reject (err:not-declared-set s))]))]
     [(block rule lines)
-     (define bs* (block-state-check/advance (cstate-bs cs) b-rule 'block))
+     (define bs* (block-state-check/advance cs b-rule 'block))
      (parameterize ((in-scope (in-scope))) ;; mutated by Intro
        (define sub-cs (check-block lines lenv rule n last?))
        (unless last?
          ;; Only check how block ends if nothing follows it, because
          ;; otherwise it would interfere with checking partial proofs.
-         (block-state-check/advance (cstate-bs sub-cs) rule 'end))
+         (block-state-check/advance sub-cs rule 'end))
        (cstate-update cs #:bs bs* #:have sub-cs))]))
 
 (define (check-wf-prop prop lenv)
@@ -149,11 +151,11 @@
     [(implies) 'a-d*]
     [(contradiction) 'a-d*]
     [(top) 'd*]
-    [(#f) 'i/a-a*-d*]))
+    [(#f) 'I/a-a*-d*]))
 
 ;; BlockRule = #f | 'forall | 'exists | 'implies | 'contradiction
 ;; BlockState
-;; - 'i/a-a*-d*
+;; - 'I/a-a*-d*
 ;; - 'i-a-d*
 ;; - 'i-d*
 ;; - 'a-d*
@@ -161,26 +163,41 @@
 ;; - 'd*    -- last statement was not Derive
 ;; - 'd:d*  -- last statement was Derive
 
-(define (block-state-check/advance state b-rule stype)
+(define (block-state-check/advance cs b-rule stype)
+  (define state (cstate-bs cs))
   (match stype
-    ['intro
+    ['intro1
      (define not-allowed "Let statement is not allowed here.")
      (match state
-       ['i/a-a*-d* 'a*-d*]
+       ['I/a-a*-d* 'a*-d*]
        ['i-a-d* 'a-d*]
        ['i-d* 'd*]
+       [_ (reject `(v ,not-allowed
+                      ,@(err:block-misplaced 'intro state b-rule)
+                      ,@(err:block-wanted state b-rule)))])]
+    ['intro*
+     (define not-allowed "Let statement is not allowed here.")
+     (match state
+       ['I/a-a*-d* 'a*-d*]
+       [(or 'i-a-d* 'i-d*)
+        (reject `(v "Let statement with multiple variables is not allowed here."
+                    "The rule requires a Let statement with a single variable."))]
        [_ (reject `(v ,not-allowed
                       ,@(err:block-misplaced 'intro state b-rule)
                       ,@(err:block-wanted state b-rule)))])]
     ['assume
      (define not-allowed "Assume statement is not allowed here.")
      (match state
-       ['i/a-a*-d* 'a*-d*]
+       ['I/a-a*-d* 'a*-d*]
        ['a-d* 'd*]
        ['a*-d* 'a*-d*]
        [_ (reject `(v ,not-allowed
                       ,@(err:block-misplaced 'assume state b-rule)
                       ,@(err:block-wanted state b-rule)))])]
+    ['want
+     (match state
+       ['d:d* 'd*]
+       [_ state])]
     ['block
      (define not-allowed "Block statement is not allowed here.")
      (match state
@@ -199,11 +216,14 @@
      (define not-allowed
        `(h "Block for " ,(rich 'rule (block-rule-name b-rule)) " is incomplete."))
      (match state
-       ['i/a-a*-d* (reject `(v ,not-allowed (h "Expected a Let or Assume statement next.")))]
+       ['I/a-a*-d* (reject `(v ,not-allowed (h "Expected a Let or Assume statement next.")))]
        [(or 'i-a-d* 'i-d*) (reject `(v ,not-allowed (h "Expected a Let statement next.")))]
        ['a-d* (reject `(v ,not-allowed (h "Expected an Assume statement next.")))]
-       ['a*-d* (reject `(v ,not-allowed (h "Expected an Assume or Derive statement next.")))]
-       ['d* (reject `(v ,not-allowed (h "Expected a Derive statement next.")))]
+       ['a*-d* (reject `(v ,not-allowed
+                           (h "Expected an Assume or Derive statement next.")
+                           (h "The block must end with a Derive statement.")))]
+       ['d* (reject `(v ,not-allowed
+                        (h "The block must end with a Derive statement.")))]
        ['d:d* 'd:d*])]
     ))
 
@@ -213,6 +233,7 @@
     ['exists "∃Elim"]
     ['implies "⇒Intro"]
     ['contradiction "Contradiction"]
+    ['intro "Intro"]
     [#f "Intro"]))
 
 (define (err:block-misplaced stype state b-rule)
@@ -370,21 +391,13 @@
      (unless (prop=? prop qq)
        (badr "q" `((p ,pp) (q ,qq)) 'args #:expect qq))]
     [(j:ImpIntro (and b-ref (app getb b)))
-     (define-values (intros assumes rest) (split-block b))
-     (unless (null? intros)
-       (reject (err:block-unwanted-intro b-ref)))
-     (define pa
-       (match assumes
-         [(list (assume pa)) pa]
-         [_ (reject (err:block-need-one-assume b-ref (length assumes)))]))
-     (define plast
-       (match (and (pair? rest) (last rest))
-         [(derive p _) p]
-         [(block _ _) (reject (err:block-ends-with-block b-ref))]
-         [#f pa]))
-     (define dprop (prop:implies pa plast))
+     ;; Block checks: no intros, one assumption, ends with derive
+     (define-values (intros assumes lastd) (split-block b 'implies b-ref))
+     (define pa (match assumes [(list (assume pa)) pa]))
+     (define pz (match lastd [(derive p _) p]))
+     (define dprop (prop:implies pa pz))
      (unless (prop=? prop dprop)
-       (badr "p ⇒ q" `((p ,pa) (q ,plast)) 'arg #:expect dprop))]
+       (badr "p ⇒ q" `((p ,pa) (q ,pz)) 'arg #:expect dprop))]
     ;; ----------------------------------------
     [(j:IffElimF (app getp pq))
      (define-values (p q)
@@ -430,18 +443,13 @@
           [_ (bad 1 p "∀ x ∈ S, P(x)")])]
        [_ (reject (err:vm-multi vm))])]
     [(j:ForallIntro (and b-ref (app getb b)))
-     (define-values (intros assumes rest) (split-block b))
+     ;; Block checks: one let, no assumes, ends with derive
+     (define-values (intros assumes lastd) (split-block b 'forall b-ref))
      (define-values (bv bs)
        (match intros
          [(list (intro (list v) s)) (values v s)]
-         [(list (intro vs s)) (reject (err:block-intro-multi b-ref))]
-         [_ (reject (err:block-need-intro b-ref))]))
-     (unless (null? assumes)
-       (reject (err:block-unwanted-assume b-ref)))
-     (define bbody
-       (match (and (pair? rest) (last rest))
-         [(derive p _) p]
-         [_ (reject (err:block-need-derive b-ref))]))
+         [(list (intro vs s)) (reject (err:block-intro-multi b-ref))]))
+     (define bbody (match lastd [(derive p _) p]))
      (define dprop (prop:forall bv bs bbody))
      (unless (prop=? prop dprop)
        (badr "∀ x ∈ S, P(x)"
@@ -455,44 +463,35 @@
        (match p
          [(prop:exists v s body) (values v s body)]
          [_ (bad 1 p "∃ x ∈ S, P(x)")]))
-     (define-values (hintros hassumes hrest) (split-block b))
-     (define hv
-       (match hintros
-         [(list (intro (list hv) hs))
-          (unless (eq? hs ps)
-            (reject `(v (p "The set name in the block's Let statement does not match"
-                           "the set name in the quantifier.")
-                        (h "In block: " ,(rich 'program-text hs))
-                        (h "In quantifier: " ,(rich 'program-text ps)))))
-          hv]
-         [(list (intro hvs hs)) (reject (err:block-intro-multi b-ref))]
-         [_ (reject (err:block-need-intro b-ref))]))
+     ;; Block checks: one let, one assume, ends with derive
+     (define-values (hintros hassumes lastd) (split-block b 'exists b-ref))
+     (define-values (hv hs) (match hintros [(list (intro (list hv) hs)) (values hv hs)]))
+     (unless (eq? hs ps)
+       (reject `(v (p "The set name in the block's Let statement does not match"
+                      "the set name in the quantifier.")
+                   (h "In block: " ,(rich 'program-text hs))
+                   (h "In quantifier: " ,(rich 'program-text ps)))))
+     (define ha (match hassumes [(list (assume ha)) ha]))
+     (define hz (match lastd [(derive p _) p]))
      (define body* (prop-subst pbody (list (cons pv (expr:var hv)))))
-     (match hassumes
-       [(list (assume ha))
-        (unless (prop=? ha body*)
-          (reject
-           (err:incorrect-prop
-            "The block's assumption" ha "P(y)" null #f
-            `[" where"
-              (h "  " ,(rich 'pattern "P(x)") " = " ,(rich 'prop pbody))
-              (h "  " ,(rich 'pattern "x") " = " ,(rich 'var pv))
-              (h "  " ,(rich 'pattern "y") " = " ,(rich 'var hv))]
-            body*)))]
-       [as (reject (err:block-need-one-assume b-ref (length as)))])
-     (define plast
-       (match (and (pair? hrest) (last hrest))
-         [(derive p _) p]
-         [_ (reject (err:block-need-derive b-ref))]))
-     (let ([fv (prop-fvs plast (in-scope))])
+     (unless (prop=? ha body*)
+       (reject
+        (err:incorrect-prop
+         "The block's assumption" ha "P(y)" null #f
+         `[" where"
+           (h "  " ,(rich 'pattern "P(x)") " = " ,(rich 'prop pbody))
+           (h "  " ,(rich 'pattern "x") " = " ,(rich 'var pv))
+           (h "  " ,(rich 'pattern "y") " = " ,(rich 'var hv))]
+         body*)))
+     (let ([fv (prop-fvs hz (in-scope))])
        (when (memq hv fv)
          (reject
           `(v (p "The rule requires that the last proposition derived in the block"
                  "does not refer to the witness variable.")
               (h "Witness variable: " ,(rich 'var hv))
-              (h "Final proposition: " ,(rich 'prop plast))))))
-     (unless (prop=? prop plast)
-       (badr "q" `((q ,plast)) 'args))]
+              (h "Final proposition: " ,(rich 'prop hz))))))
+     (unless (prop=? prop hz)
+       (badr "q" `((q ,hz)) 'args))]
     [(j:ExistsIntro (app getp p) vm)
      (define-values (rv rs rbody)
        (match prop
@@ -558,15 +557,9 @@
      (unless (prop=? prop result-prop)
        (badr #:expect result-prop))]
     [(j:intro (and b-ref (app getb b)))
-     (define-values (intros assumes rest) (split-block b))
-     (define rprop
-       (cond [(pair? rest)
-              (match (last rest)
-                [(derive p _) p])]
-             [(pair? assumes)
-              (match (last assumes)
-                [(assume p) p])]
-             [else (reject (err:block-ends-with-block b-ref))])) ;; FIXME
+     ;; Block checks: ends with Derive
+     (define-values (intros assumes lastd) (split-block b #f b-ref))
+     (define rprop (match lastd [(derive p _) p]))
      (define arprop
        (foldr (lambda (a p)
                 (match a
@@ -619,17 +612,10 @@
                  #:more `[(h " where " ,(rich 'pattern "r") " is either "
                              ,(rich 'pattern "p") " or " ,(rich 'pattern "q"))])])]
     [(j:Contradiction (and b-ref (app getb b)))
-     (define-values (intros assumes rest) (split-block b))
-     (unless (null? intros)
-       (reject (err:block-unwanted-intro b-ref)))
-     (define pa
-       (match assumes
-         [(list (assume pa)) pa]
-         [_ (reject (err:block-need-one-assume b-ref (length assumes)))]))
-     (define pz
-       (match (and (pair? rest) (last rest))
-         [(derive p _) p]
-         [_ (reject (err:block-need-derive b-ref))]))
+     ;; Block checks: no lets, one assume, ends with Derive
+     (define-values (intros assumes lastd) (split-block b 'contradiction b-ref))
+     (define pa (match assumes [(list (assume pa)) pa]))
+     (define pz (match lastd [(derive p _) p]))
      (unless (prop-contradiction? pz)
        (reject (err:incorrect-prop
                 "The block's final proposition" pz "q ∧ ¬q" null #f
@@ -705,15 +691,19 @@
          (prop=? q (prop:not p)))]
     [_ #f]))
 
-;; discard Want lines, split into Let{0,1}, Assume*, (Block/Derive)*
-(define (split-block b)
+;; discard Want lines, split into Let{0,1}, Assume*, Derive
+(define (split-block b wantrule b-ref)
   (match b
-    [(block _ lines)
+    [(block rule lines)
+     (when (and wantrule (not (equal? rule wantrule)))
+       (reject `(v "Wrong kind of block."
+                   (h ,(rich 'block-ref b-ref) " declared for " ,(rich 'rule (block-rule-name rule)))
+                   (h "Rule used: " ,(rich 'rule (block-rule-name wantrule))))))
      (define (not-want? v) (not (want? v)))
      (define stmts0 (filter not-want? (map line-s lines)))
      (define-values (intros rest1) (splitf-at stmts0 intro?))
      (define-values (assumes rest2) (splitf-at rest1 assume?))
-     (values intros assumes rest2)]))
+     (values intros assumes (last rest2))]))
 
 ;; ============================================================
 
