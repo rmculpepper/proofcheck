@@ -122,7 +122,6 @@ p, .par {
 
 .r_program_text {
     color: black;
-    background-color: lightgray;
     padding: 2px;
     font-family: monospace, monospace;
 }
