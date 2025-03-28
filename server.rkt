@@ -70,12 +70,13 @@ Axiom 11: ∀ n,d,q1,r1,q2,r2 ∈ NN, Div(n,d,q1,r1) ⇒ Div(n,d,q2,r2) ⇒ (q1 
         (define msg
           (cond [(proof-qed? pf)
                  `(v "Proof complete."
-                     (h "Theorem: " ,(rich 'prop (cstate-last cs))))]
+                     (h "Theorem: " ,(rich 'prop (derive-p (cstate-last cs)))))]
                 [(proof-goal pf)
                  `(v (h "No errors were found, but the proof is incomplete.")
-                     (p "The proof is incomplete because there was a Theorem declaration"
+                     (p "The proof is incomplete because there was a Theorem statement"
                         "but the proof does not end with QED.")
-                     (v+ ,@(show-cstate cs)))]
+                     (v+ (h "Main goal: " ,(rich 'prop (proof-goal pf)))
+                         ,@(show-cstate cs)))]
                 [else
                  `(v (h "No errors were found.")
                      (v+ ,@(show-cstate cs)))]))
@@ -87,21 +88,24 @@ Axiom 11: ∀ n,d,q1,r1,q2,r2 ∈ NN, Div(n,d,q1,r1) ⇒ Div(n,d,q2,r2) ⇒ (q1 
   (define (header ln)
     (if (null? ln) "Main proof list:" `(h "Block #" ,(rich 'lineno ln) ":")))
   (define (lastprop v)
-    (cond [(prop? v) `((h "Last derived: " ,(rich 'prop v)))] [else null]))
+    (match v
+      [(assume p) `((h "Last assumed: " ,(rich 'prop p)))]
+      [(derive p _) `((h "Last derived: " ,(rich 'prop p)))]
+      [_ null]))
   (match cs
-    [(cstate ln _ #f (? cstate? last))
-     (show-cstate last)]
-    [(cstate ln _ #f (? prop? last))
-     (list `(v ,(header ln) ,@(lastprop last)))]
+    [(cstate ln _ #f last)
+     (cond [(cstate? last) (show-cstate last)]
+           [last (list `(v ,(header ln) ,@(lastprop last)))]
+           [else null])]
     [(cstate ln _ '() last)
      (cons `(v ,(header ln)
-               (h "No unsatisfied goals.")
+               (h "No unsatisfied sub-goals.")
                ,@(lastprop last))
            (show-cstate last))]
-    [(cstate ln _ goals last)
+    [(cstate ln _ (? pair? goals) last)
      (cons `(v ,(header ln)
-               ,@(for/list ([goal (in-list goals)])
-                   `(h "Unsatisfied goal: " ,(rich 'prop goal)))
+               ,@(for/list ([goal (in-list (or goals null))])
+                   `(h "Sub-goal: " ,(rich 'prop goal)))
                ,@(lastprop last))
            (show-cstate last))]
     [_ null]))

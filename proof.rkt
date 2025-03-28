@@ -26,13 +26,14 @@
   (prefix ;; LineNoPrefix
    bs     ;; BlockState
    goals  ;; #f or (Listof Prop) -- Wants that have not been discharged
-   last   ;; (U #f Prop CheckState) -- last Derived prop or state of last Block
+   last   ;; (U #f Derive Assume CheckState) -- last stmt or state of last Block
    ) #:transparent)
 
-(define (cstate-update cs #:bs [bs #f] #:want [want #f] #:have [have #f])
+(define (cstate-update cs #:bs [bs #f] #:want [want #f] #:have [have #f] #:last [newlast #f])
   (match-define (cstate prefix bstate goals last) cs)
-  (let ([goals (and goals (if have (remove* (list have) goals) goals))])
-    (cstate prefix (or bs bstate) (if want (cons want (or goals null)) goals) (or have last))))
+  (let ([goals (and goals (if have (remove* (list have) goals) goals))]
+        [last (if want #f last)])
+    (cstate prefix (or bs bstate) (if want (cons want (or goals null)) goals) (or newlast last))))
 
 ;; LEnv = Hash
 ;; - maps AxiomRef to Prop
@@ -103,7 +104,7 @@
     [(derive prop just)
      (begin0 (cstate-update cs
                             #:bs (block-state-check/advance cs b-rule 'derive)
-                            #:have prop)
+                            #:have prop #:last stmt)
        (check-wf-prop prop lenv)
        (check-derive n prop just lenv))]
     [(want prop)
@@ -114,7 +115,7 @@
     [(assume prop)
      (begin0 (cstate-update cs
                             #:bs (block-state-check/advance cs b-rule 'assume)
-                            #:have prop)
+                            #:have prop #:last stmt)
        (check-wf-prop prop lenv))]
     [(intro vars s)
      (define stype (if (= (length vars) 1) 'intro1 'intro*))
@@ -134,7 +135,7 @@
          ;; Only check how block ends if nothing follows it, because
          ;; otherwise it would interfere with checking partial proofs.
          (block-state-check/advance sub-cs rule 'end))
-       (cstate-update cs #:bs bs* #:have sub-cs))]))
+       (cstate-update cs #:bs bs* #:last sub-cs))]))
 
 (define (check-wf-prop prop lenv)
   ;; Check no free variables
