@@ -114,6 +114,70 @@
   [$WS (:or " " "\t" "\v" "\n" "\f" "\r")]
   [$WS+ (:+ $WS)])
 
+(define ((misspelled alts) word start end)
+  (reject `(v "Bad token. Perhaps you misspelled one of the following rule names."
+              (h "Invalid word: " ,(rich 'program-text word))
+              (h "Suggestions: "
+                 ,@(add-between (for/list ([alt alts]) (rich 'program-text alt)) ", "))
+              (h "Position: " ,(rich 'srcpair (cons start end))))))
+
+(define reserved-words
+  (hash "Derive"  'DERIVE
+        "Block"   'BLOCK
+        "Let"     'LET
+        "Assume"  'ASSUME
+        "Want"    'WANT
+        "Axiom"   'AXIOM
+        "Declare" 'DECLARE
+        "Theorem" 'THEOREM
+        "QED"     'QED
+
+        "not"     'NOT
+        "and"     'AND
+        "or"      'OR
+        "iff"     'IFF
+        "implies" 'IMPLIES
+        "forall"  'FORALL
+        "exists"  'EXISTS
+
+        "by"        'BY
+        "on"        'ON
+        "with"      'WITH
+        "in"        'IN
+        "for"       'FOR
+        "forward"   'FORWARD
+        "backward"  'BACKWARD
+   
+        "Intro"    'INTRO
+        "Elim"     'ELIM
+        "AndIntro" 'ANDINTRO
+        "AndElimL" 'ANDELIML
+        "AndElimR" 'ANDELIMR
+        "OrIntroL" 'ORINTROL
+        "OrIntroR" 'ORINTROR
+        "OrElim"   'ORELIM
+        "IffElimF" 'IFFELIMF
+        "IffElimB" 'IFFELIMB
+        "IffIntro" 'IFFINTRO
+        "ImpliesElim"       'IMPELIM
+        "ImpliesIntro"      'IMPINTRO
+        "ImplicationElim"   'IMPELIM
+        "ImplicationIntro"  'IMPINTRO
+        "ForAllElim"        'FORALLELIM
+        "ForAllIntro"       'FORALLINTRO
+        "ExistsElim"        'EXISTSELIM
+        "ExistsIntro"       'EXISTSINTRO
+        "Repeat"            'REPEAT
+        "Algebra"           'ALGEBRA
+        "ModusTollens"      'MODUSTOLLENS
+        "Contradiction"     'CONTRADICTION
+        "DisjunctiveSyllogism" 'DISJSYLLOGISM
+
+        "AndElim" (misspelled '("AndElimL" "AndElimR"))
+        "OrIntro" (misspelled '("OrIntroL" "OrIntroR"))
+        "IffElim" (misspelled '("IffElimF" "IffElimB"))
+        ))
+
 (define lex
   (lexer-src-pos
    [(eof) 'EOF]
@@ -130,15 +194,15 @@
    ["}" 'RIGHTBRACE]
    ["#" 'HASH]
 
-   ["Derive" 'DERIVE]
-   ["Block" 'BLOCK]
-   ["Let" 'LET]
-   ["Assume" 'ASSUME]
-   ["Want" 'WANT]
-   ["Axiom" 'AXIOM]
-   ["Declare" 'DECLARE]
-   ["Theorem" 'THEOREM]
-   ["QED" 'QED]
+   ;; ["Derive" 'DERIVE]
+   ;; ["Block" 'BLOCK]
+   ;; ["Let" 'LET]
+   ;; ["Assume" 'ASSUME]
+   ;; ["Want" 'WANT]
+   ;; ["Axiom" 'AXIOM]
+   ;; ["Declare" 'DECLARE]
+   ;; ["Theorem" 'THEOREM]
+   ;; ["QED" 'QED]
 
    ["¬" 'NOT]
    ["∧" 'AND]
@@ -148,16 +212,17 @@
    ["⇐" 'LEFTARROW]
    ["∀" 'FORALL]
    ["∃" 'EXISTS]
-   ["not" 'NOT]
-   ["and" 'AND]
-   ["or"  'OR]
-   ["iff" 'IFF]
-   ["implies" 'IMPLIES]
-   ["forall" 'FORALL]
-   ["exists" 'EXISTS]
 
-   ["Intro" 'INTRO]
-   ["Elim" 'ELIM]
+   ;; ["not" 'NOT]
+   ;; ["and" 'AND]
+   ;; ["or"  'OR]
+   ;; ["iff" 'IFF]
+   ;; ["implies" 'IMPLIES]
+   ;; ["forall" 'FORALL]
+   ;; ["exists" 'EXISTS]
+
+   ;; ["Intro" 'INTRO]
+   ;; ["Elim" 'ELIM]
 
    ["∧Intro" 'ANDINTRO]
    ["∧ElimL" 'ANDELIML]
@@ -175,36 +240,36 @@
    ["∃Elim"  'EXISTSELIM]
    ["∃Intro" 'EXISTSINTRO]
 
-   ["AndIntro" 'ANDINTRO]
-   ["AndElimL" 'ANDELIML]
-   ["AndElimR" 'ANDELIMR]
-   ["OrIntroL" 'ORINTROL]
-   ["OrIntroR" 'ORINTROR]
-   ["OrElim"   'ORELIM]
-   ["ImpliesElim"  'IMPELIM]
-   ["ImpliesIntro" 'IMPINTRO]
-   ["ImplicationElim"  'IMPELIM]
-   ["ImplicationIntro" 'IMPINTRO]
-   ["IffElimF" 'IFFELIMF]
-   ["IffElimB" 'IFFELIMB]
-   ["IffIntro" 'IFFINTRO]
-   ["ForAllElim"  'FORALLELIM]
-   ["ForAllIntro" 'FORALLINTRO]
-   ["ExistsElim"  'EXISTSELIM]
-   ["ExistsIntro" 'EXISTSINTRO]
+   ;; ["AndIntro" 'ANDINTRO]
+   ;; ["AndElimL" 'ANDELIML]
+   ;; ["AndElimR" 'ANDELIMR]
+   ;; ["OrIntroL" 'ORINTROL]
+   ;; ["OrIntroR" 'ORINTROR]
+   ;; ["OrElim"   'ORELIM]
+   ;; ["ImpliesElim"  'IMPELIM]
+   ;; ["ImpliesIntro" 'IMPINTRO]
+   ;; ["ImplicationElim"  'IMPELIM]
+   ;; ["ImplicationIntro" 'IMPINTRO]
+   ;; ["IffElimF" 'IFFELIMF]
+   ;; ["IffElimB" 'IFFELIMB]
+   ;; ["IffIntro" 'IFFINTRO]
+   ;; ["ForAllElim"  'FORALLELIM]
+   ;; ["ForAllIntro" 'FORALLINTRO]
+   ;; ["ExistsElim"  'EXISTSELIM]
+   ;; ["ExistsIntro" 'EXISTSINTRO]
 
-   ["Algebra" 'ALGEBRA]
-   ["ModusTollens" 'MODUSTOLLENS]
-   ["DisjunctiveSyllogism" 'DISJSYLLOGISM]
-   ["Contradiction" 'CONTRADICTION]
-   ["Repeat" 'REPEAT]
+   ;; ["Algebra" 'ALGEBRA]
+   ;; ["ModusTollens" 'MODUSTOLLENS]
+   ;; ["DisjunctiveSyllogism" 'DISJSYLLOGISM]
+   ;; ["Contradiction" 'CONTRADICTION]
+   ;; ["Repeat" 'REPEAT]
 
-   ["∧Elim"   'ANDELIM-is-not-a-rule-name]
-   ["∨Intro"  'ORINTRO-is-not-a-rule-name]
-   ["⇔Elim"   'IFFELIM-is-not-a-rule-name]
-   ["AndElim" 'ANDELIM-is-not-a-rule-name]
-   ["OrIntro" 'ORINTRO-is-not-a-rule-name]
-   ["IffElim" 'IFFELIM-is-not-a-rule-name]
+   ["∧Elim"   ((misspelled '("AndElimL" "AndElimR")) lexeme start-pos end-pos)]
+   ["∨Intro"  ((misspelled '("OrIntroL" "OrIntroR")) lexeme start-pos end-pos)]
+   ["⇔Elim"   ((misspelled '("IffElimF" "IffElimB")) lexeme start-pos end-pos)]
+   ;; ["AndElim" (misspelled '("AndElimL" "AndElimR"))]
+   ;; ["OrIntro" (misspelled '("OrIntroL" "OrIntroR"))]
+   ;; ["IffElim" (misspelled '("IffElimF" "IffElimB"))]
 
    ["=" 'EQ]
    [">" 'GT]
@@ -224,15 +289,15 @@
    [":" 'COLON]
    [";" 'SEMICOLON]
    ["∈" 'IN]
-   ["by" 'BY]
-   ["on" 'ON]
-   ["with" 'WITH]
-   ["forward" 'FORWARD]
-   ["backward" 'BACKWARD]
-
-   ["in" 'IN]
-   ["for" 'FOR]
    ["..." 'ELLIPSES]
+
+   ;; ["by" 'BY]
+   ;; ["on" 'ON]
+   ;; ["with" 'WITH]
+   ;; ["forward" 'FORWARD]
+   ;; ["backward" 'BACKWARD]
+   ;; ["in" 'IN]
+   ;; ["for" 'FOR]
 
    ["NN" (token-IDENTIFIER 'ℕ)]
 
@@ -240,7 +305,19 @@
    [(:: $N+ (:+ "." $N+) (:? "."))
     (token-LINENUMBER (map string->number (string-split lexeme "." #:trim? #t)))]
    [(:: $A (:* $AN))
-    (cond [(char-lower-case? (string-ref lexeme 0))
+    (cond [(hash-ref reserved-words lexeme #f)
+           => (lambda (tok) (if (procedure? tok) (tok lexeme start-pos end-pos) tok))]
+          [(for/or ([(reserved tok) (in-hash reserved-words)]
+                    #:when (string-ci=? lexeme reserved))
+             (if (symbol? tok) reserved tok))
+           => (lambda (reserved)
+                (if (string? reserved)
+                    (reject `(v "Bad token. Incorrect capitalization of reserved word."
+                                (h "Got: " ,(rich 'program-text lexeme))
+                                (h "Expected: " ,(rich 'program-text reserved))
+                                (h "Position: " ,(rich 'srcpair (cons start-pos end-pos)))))
+                    (reserved start-pos end-pos)))]
+          [(char-lower-case? (string-ref lexeme 0))
            (token-VARIABLE (string->symbol lexeme))]
           [else
            (token-IDENTIFIER (string->symbol lexeme))])]
