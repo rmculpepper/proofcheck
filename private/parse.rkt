@@ -562,7 +562,7 @@
      [(LEFTPAREN Prop RIGHTPAREN) $2]
 
      [(Expr EQ Expr)
-      (prop:eq $1 $3)]
+      (prop:cmp 'eq $1 $3)]
      [(Expr GT Expr)
       (prop:cmp 'gt $1 $3)]
      [(Expr LT Expr)

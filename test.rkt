@@ -310,12 +310,14 @@ Axiom 2: GE(2,1)
 ;; FIXME: error tests
 
 ;; Algebra
-(tok "Axiom 1: R(1,2) and S(3,4)
-1 Derive R(5,6) and S(7,8) by Algebra on Axiom 1")
 (tok "1 Derive 1+2 = 2+1 by Algebra")
-(terr "Axiom 1: R(1,2) and S(3,4)
-1 Derive R(5,6) implies S(7,8) by Algebra on Axiom 1"
-      #:err #rx"logical structure")
+(tok "1 Block for Intro
+1.1 Let n in NN
+1.2 Derive 2*n = n + n by Algebra")
+(tok "1 Block for Intro
+1.1 Let a,b in NN
+1.2 Assume a < b
+1.3 Derive b > a by Algebra on #1.2")
 
 ;; ModusTollens
 (tok "Axiom 1: A implies B \n Axiom 2: not B

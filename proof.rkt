@@ -582,14 +582,17 @@
     ;; ----------------------------------------
     [(j:algebra refs)
      (define ps (map getp refs))
+     (for ([p (in-list ps)] [p-ref (in-list refs)])
+       (unless (prop-eqn/ineqn? p)
+         (reject `(v "Argument to Algebra rule is not an equation or inequality."
+                     (h "Argument reference: " ,(rich 'ref p-ref))
+                     (h "Argument proposition: " ,(rich 'prop p))))))
+     (unless (prop-eqn/ineqn? prop)
+       (reject `(v "Derived proposition is not an equation or inequality."
+                   (h "Proposition: " ,(rich 'prop prop)))))
      (let ([fvs (prop-fvs prop (in-scope))])
        (when (pair? fvs) (reject (err:prop-fv #f fvs))))
-     (unless (prop-algebra-can-derive? prop)
-       (match ps
-         [(cons propa (list (? prop:eq?) ...))
-          #:when (prop-same-logic? prop propa)
-          (void)]
-         [_ (reject (err:bad-algebra prop))]))]
+     (check-algebra ps prop)]
     ;; ----------------------------------------
     [(j:ModusTollens (app getp pq) (app getp nq))
      (define-values (p q)
@@ -643,6 +646,52 @@
                 (reject (err:expr-not-in-set e s))))]
         [else (reject (err:not-declared-set s))]))
 
+(define (check-algebra if-ps then-p)
+  (define vars (remove-duplicates (props-fvs (cons then-p if-ps) (hasheq))))
+  ;; FIXME: Check every var is Nat -- not needed for current grammar?
+  (define (verify venv)
+    (when (and (for/and ([if-p (in-list if-ps)])
+                 (eval-prop if-p venv))
+               (not (eval-prop then-p venv)))
+      (reject `(v "The derived proposition is not true."
+                  (h "Counter-example: "
+                     ,@(add-between
+                        (for/list ([(var n) (in-hash venv)])
+                          `(h ,(rich 'var var) "=" ,(rich 'expr (expr:integer n))))
+                        ", "))))))
+  (algebra-run-verifier vars verify))
+
+(define MAX-FUEL #e1e4)
+(define MAX-RANDOM #e1e9)
+(define NRANDOM #e1e4)
+
+(define (algebra-run-verifier vars verify)
+  (define init-fuel (inexact->exact (ceiling (expt MAX-FUEL (/ (max 1 (length vars)))))))
+  (define venv (make-hasheq))
+  (define (run-with-fuel vars fuel)
+    (match vars
+      [(list)
+       (verify venv)]
+      [(list var)
+       (hash-set! venv var fuel)
+       (verify venv)]
+      [(cons var vars)
+       (for ([val (in-range 0 fuel)])
+         (hash-set! venv var val)
+         (run-with-fuel vars (- fuel val)))]))
+  (define (run/random vars)
+    (match vars
+      [(list)
+       (verify venv)]
+      [(cons var vars)
+       (hash-set! venv var (random MAX-RANDOM))
+       (run/random vars)]))
+  (for ([fuel (in-range init-fuel)])
+    (run-with-fuel vars fuel))
+  (random-seed 220)
+  (for ([iter (in-range NRANDOM)])
+    (run/random vars)))
+
 (define (lineno-next n)
   (append (drop-right n 1) (list (add1 (last n)))))
 
@@ -661,7 +710,6 @@
     [(prop:not p) (prop-algebra-can-derive? p)]
     [(prop:and p q) (and (prop-algebra-can-derive? p)
                          (prop-algebra-can-derive? q))]
-    [(prop:eq _ _) #t]
     [(prop:cmp _ _ _) #t]
     [_ #f]))
 
@@ -685,7 +733,6 @@
        (and (loop ap bp))]
       [[(prop:atomic a) (prop:atomic b)]
        (equal? a b)]
-      [[(? prop:eq?) (? prop:eq?)] #t]
       [[(? prop:cmp?) (? prop:cmp?)] #t]
       [[(? prop:pred?) (? prop:pred?)] #t]
       [[(? prop:in?) (? prop:in?)] #t]

@@ -28,7 +28,6 @@
 (struct prop:exists (v s p) #:prefab)
 (struct prop:atomic (a) #:prefab)
 
-(struct prop:eq (a b) #:prefab)
 (struct prop:cmp (cmp a b) #:prefab)
 (struct prop:pred (pred args) #:prefab)
 (struct prop:in (e s) #:prefab)
@@ -36,7 +35,7 @@
 (define (prop? v)
   (or (prop:not? v) (prop:and? v) (prop:or? v) (prop:implies? v) (prop:iff? v)
       (prop:forall? v) (prop:exists? v) (prop:atomic? v)
-      (prop:eq? v) (prop:cmp? v) (prop:pred? v) (prop:in? v)))
+      (prop:cmp? v) (prop:pred? v) (prop:in? v)))
 
 (struct expr:integer (n) #:prefab)
 (struct expr:object (s) #:prefab)
@@ -84,7 +83,6 @@
       [(prop:forall v s p) (format "(∀ ~a ∈ ~a, ~a)" (var->string v) s (loop p))]
       [(prop:exists v s p) (format "(∃ ~a ∈ ~a, ~a)" (var->string v) s (loop p))]
       [(prop:atomic a) (format "~a" a)]
-      [(prop:eq a b) (format "(~a = ~a)" (expr->string a) (expr->string b))]
       [(prop:cmp cmp a b) (format "(~a ~a ~a)" (expr->string a) (cmp->string cmp) (expr->string b))]
       [(prop:pred pred args)
        (format "~a(~a)" pred (string-join (map expr->string args) ", "))]
@@ -92,7 +90,7 @@
       [_ (error 'prop->string "internal error: bad prop: ~e" p)])))
 
 (define (cmp->string cmp)
-  (case cmp [(gt) ">"] [(ge) "≥"] [(lt) "<"] [(le) "≤"]))
+  (case cmp [(eq) "="] [(gt) ">"] [(ge) "≥"] [(lt) "<"] [(le) "≤"]))
 
 (define (expr->string e)
   (match e
@@ -129,11 +127,13 @@
       [(prop:forall v s body) (prop-fvs body (hash-set env v s))]
       [(prop:exists v s body) (prop-fvs body (hash-set env v s))]
       [(prop:atomic a) null]
-      [(prop:eq a b) (append (expr-fvs a env) (expr-fvs b env))]
       [(prop:cmp cmp a b) (append (expr-fvs a env) (expr-fvs b env))]
       [(prop:pred pred args) (exprs-fvs args env)]
       [(prop:in e s) (expr-fvs e env)]
       [_ (error 'prop-fvs "internal error: bad prop: ~e" p)])))
+
+(define (props-fvs ps env)
+  (append* (for/list ([p (in-list ps)]) (prop-fvs p env))))
 
 (define (expr-fvs e env)
   (let loop ([e e])
@@ -171,7 +171,6 @@
       [(prop:exists v s body)
        (binder-subst prop:exists v s body vm vmfv)]
       [(prop:atomic a) p]
-      [(prop:eq a b) (prop:eq (expr-subst a vm) (expr-subst b vm))]
       [(prop:cmp cmp a b) (prop:cmp cmp (expr-subst a vm) (expr-subst b vm))]
       [(prop:pred pred args)
        (prop:pred pred (for/list ([arg (in-list args)]) (expr-subst arg vm)))]
@@ -208,6 +207,33 @@
     (cond [(hash-has-key? venv vi) (loop (add1 i))]
           [(hash-has-key? names vi) (loop (add1 i))]
           [else (all-names (hash-set names vi #t)) vi])))
+
+;; ----------------------------------------
+
+(define (prop-eqn/ineqn? p)
+  (match p
+    [(prop:cmp _ a b) #t]
+    [_ #f]))
+
+(define (eval-prop p venv)
+  (match p
+    [(prop:cmp cmp a b)
+     (let ([a (eval-expr a venv)]
+           [b (eval-expr b venv)])
+       (case cmp
+         [(eq) (= a b)]
+         [(gt) (> a b)]
+         [(lt) (< a b)]
+         [(ge) (>= a b)]
+         [(le) (<= a b)]))]))
+
+(define (eval-expr e venv)
+  (let loop ([e e])
+    (match e
+      [(expr:integer n) n]
+      [(expr:var var) (hash-ref venv var)]
+      [(expr:plus a b) (+ (loop a) (loop b))]
+      [(expr:times a b) (* (loop a) (loop b))])))
 
 ;; ----------------------------------------
 
