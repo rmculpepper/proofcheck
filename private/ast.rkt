@@ -72,6 +72,46 @@
 
 ;; ============================================================
 
+(define (prop=? a b)
+  (or (equal? a b) (prop-alpha=? a b)))
+
+(define (prop-alpha=? a b)
+  (let loop ([a a] [b b])
+    (match* [a b]
+      [[(prop:not a) (prop:not b)]
+       (loop a b)]
+      [[(prop:and a1 a2) (prop:and b1 b2)]
+       (and (loop a1 b1) (loop a2 b2))]
+      [[(prop:or a1 a2) (prop:or b1 b2)]
+       (and (loop a1 b1) (loop a2 b2))]
+      [[(prop:implies a1 a2) (prop:implies b1 b2)]
+       (and (loop a1 b1) (loop a2 b2))]
+      [[(prop:iff a1 a2) (prop:iff b1 b2)]
+       (and (loop a1 b1) (loop a2 b2))]
+      [[(prop:forall av as ap) (prop:forall bv bs bp)]
+       (and (equal? as bs)
+            (if (equal? av bv)
+                (loop ap bp)
+                (let ([v (gensym)])
+                  (loop (prop-subst ap (list (cons av (expr:var v))))
+                        (prop-subst bp (list (cons bv (expr:var v))))))))]
+      [[(prop:exists av as ap) (prop:exists bv bs bp)]
+       (and (equal? as bs)
+            (if (equal? av bv)
+                (loop ap bp)
+                (let ([v (gensym)])
+                  (loop (prop-subst ap (list (cons av (expr:var v))))
+                        (prop-subst bp (list (cons bv (expr:var v))))))))]
+      [[(prop:atomic a) (prop:atomic b)]
+       (equal? a b)]
+      [[(prop:cmp acmp ae1 ae2) (prop:cmp bcmp be1 be2)]
+       (and (equal? acmp bcmp) (equal? ae1 be1) (equal? ae2 be2))]
+      [[(prop:pred apred aes) (prop:pred bpred bes)]
+       (and (equal? apred bpred) (equal? aes bes))]
+      [[(prop:in ae as) (prop:in be bs)]
+       (and (equal? ae be) (equal? as bs))]
+      [[_ _] #f])))
+
 (define (prop->string p)
   (let loop ([p p])
     (match p

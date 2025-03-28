@@ -3,7 +3,8 @@
          syntax/location
          syntax/srcloc
          rackunit
-         "proof.rkt")
+         "proof.rkt"
+         "private/ast.rkt")
 (provide (all-from-out "proof.rkt")
          (all-defined-out))
 
@@ -35,6 +36,20 @@
     (define pf (string->proof s))
     (check-exn pred/rx (lambda () (check-proof (append (common-axioms) pf))))
     (void)))
+
+;; ----------------------------------------
+
+(check prop=?
+       (string->prop "forall x in NN, 0 <= x")
+       (string->prop "forall y in NN, 0 <= y"))
+
+(check prop=?
+       (string->prop "forall x in NN, exists y in NN, x = y")
+       (string->prop "forall y in NN, exists x in NN, y = x"))
+
+(check-false
+ (prop=? (string->prop "forall x in NN, exists y in NN, x = y")
+         (string->prop "forall y in NN, exists x in NN, x = y")))
 
 ;; ----------------------------------------
 

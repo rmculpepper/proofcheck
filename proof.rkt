@@ -15,6 +15,7 @@
 (provide (all-from-out "private/ast.rkt")
          (all-from-out "private/error.rkt")
          string->proof
+         string->prop
          (struct-out proof)
          (struct-out cstate)
          check-proof)
@@ -701,42 +702,6 @@
     [[(list n1) (cons at1 _)]
      (< n1 at1)]
     [[_ _] #f]))
-
-(define (prop=? p q)
-  (equal? p q))
-
-(define (prop-algebra-can-derive? p)
-  (match p
-    [(prop:not p) (prop-algebra-can-derive? p)]
-    [(prop:and p q) (and (prop-algebra-can-derive? p)
-                         (prop-algebra-can-derive? q))]
-    [(prop:cmp _ _ _) #t]
-    [_ #f]))
-
-(define (prop-same-logic? a b)
-  ;; Do the props the same logical structure? (close enough for algebra?)
-  (let loop ([a a] [b b])
-    (match* [a b]
-      [[(prop:not a) (prop:not b)]
-       (loop a b)]
-      [[(prop:and a1 a2) (prop:and b1 b2)]
-       (and (loop a1 b1) (loop a2 b2))]
-      [[(prop:or a1 a2) (prop:or b1 b2)]
-       (and (loop a1 b1) (loop a2 b2))]
-      [[(prop:implies a1 a2) (prop:implies b1 b2)]
-       (and (loop a1 b1) (loop a2 b2))]
-      [[(prop:iff a1 a2) (prop:iff b1 b2)]
-       (and (loop a1 b1) (loop a2 b2))]
-      [[(prop:forall av as ap) (prop:forall bv bs bp)]
-       (and (loop ap bp))]
-      [[(prop:exists av as ap) (prop:exists bv bs bp)]
-       (and (loop ap bp))]
-      [[(prop:atomic a) (prop:atomic b)]
-       (equal? a b)]
-      [[(? prop:cmp?) (? prop:cmp?)] #t]
-      [[(? prop:pred?) (? prop:pred?)] #t]
-      [[(? prop:in?) (? prop:in?)] #t]
-      [[_ _] #f])))
 
 (define (prop-contradiction? p)
   (match p

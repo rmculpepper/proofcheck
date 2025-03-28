@@ -378,6 +378,9 @@
 (define (parse-prop toks) (prop-parser (tokens->lex toks)))
 (define (parse-justification toks) (justification-parser (tokens->lex toks)))
 
+(define (string->prop s)
+  (parse-prop (string->tokens s)))
+
 (define (raise-parser-error* tok rts)
   (define t (position-token-token tok))
   (raise-parser-error #t (token-name t) (token-value t)
