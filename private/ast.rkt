@@ -66,6 +66,7 @@
 (struct j:ModusTollens (pq nq) #:prefab)
 (struct j:DisjSyl (pq np) #:prefab)
 (struct j:Contradiction (b) #:prefab)
+(struct j:Repeat (p) #:prefab)
 
 (struct ref:line (ln) #:prefab)
 (struct ref:axiom (n) #:prefab)

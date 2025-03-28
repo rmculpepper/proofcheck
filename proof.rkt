@@ -293,6 +293,7 @@
     [(j:ModusTollens _ _) "Modus Tollens"]
     [(j:DisjSyl _ _) "Disjunctive Syllogism"]
     [(j:Contradiction _) "Contradiction"]
+    [(j:Repeat _) "Repeat"]
     [_ #f]))
 
 ;; ----------------------------------------
@@ -622,6 +623,9 @@
                 `["That is, the block must end in a contradiction."] #f)))
      (unless (prop=? prop (prop:not pa))
        (badr "¬p" `((p ,pa)) 'arg #:expect (prop:not pa)))]
+    [(j:Repeat (app getp p))
+     (unless (prop=? prop p)
+       (badr "p" `((p ,p)) 'args #:expect p))]
     ;; ----------------------------------------
     [_ (error 'check-derive "internal error: bad justification: ~e" just)]))
 

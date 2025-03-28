@@ -73,6 +73,7 @@
    MODUSTOLLENS
    DISJSYLLOGISM
    CONTRADICTION
+   REPEAT
 
    ORINTRO-is-not-a-rule-name
    IFFELIM-is-not-a-rule-name
@@ -196,6 +197,7 @@
    ["ModusTollens" 'MODUSTOLLENS]
    ["DisjunctiveSyllogism" 'DISJSYLLOGISM]
    ["Contradiction" 'CONTRADICTION]
+   ["Repeat" 'REPEAT]
 
    ["∧Elim"   'ANDELIM-is-not-a-rule-name]
    ["∨Intro"  'ORINTRO-is-not-a-rule-name]
@@ -485,6 +487,7 @@
      [(BY MODUSTOLLENS OnClause) (apply-on "ModusTollens" 2 $3 j:ModusTollens)]
      [(BY DISJSYLLOGISM OnClause) (apply-on "DisjunctiveSyllogism" 2 $3 j:DisjSyl)]
      [(BY CONTRADICTION OnClause) (apply-on "Contradiction" 1 $3 j:Contradiction)]
+     [(BY REPEAT OnClause) (apply-on "Repeat" 1 $3 j:Repeat)]
      [(BY PRef MaybeVarMap MaybeDirection ON PRef+)
       (j:elim $2 $3 $4 $6)]
      [(BY INTRO ON BRef)
