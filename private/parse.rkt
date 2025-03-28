@@ -459,7 +459,7 @@
       (intro $2 $4)]]
 
     [BlockFor
-     [() #f]
+     #;[() #f]
      [(FOR INTRO) #f]
      [(FOR FORALLINTRO) 'forall]
      [(FOR IMPINTRO) 'implies]

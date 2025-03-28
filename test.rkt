@@ -58,19 +58,19 @@
 
 (terr
  #:err #rx"Block statement is not allowed here"
- "1 Block \n 1.1 Block \n 1.2 Assume A")
+ "1 Block for ImpliesIntro \n 1.1 Block for Intro \n 1.2 Assume A")
 
 (terr
  #:err #rx"not in scope" ;; Assume
- "1 Block \n 1.1 Assume LE(x,y)")
+ "1 Block for Intro \n 1.1 Assume LE(x,y)")
 
 (terr
  #:err #rx"Let statement is not allowed here"
- "1 Block \n 1.1 Assume A \n 1.2 Let x in S")
+ "1 Block for Intro \n 1.1 Assume A \n 1.2 Let x in S")
 
 (terr
  #:err #rx"already in scope" ;; Let
- "1 Block \n 1.1 Let x in NN \n 1.2 Block \n 1.2.1 Let x in NN")
+ "1 Block for Intro \n 1.1 Let x in NN \n 1.2 Block for Intro \n 1.2.1 Let x in NN")
 
 (terr
  #:err #rx"within a block"
@@ -82,7 +82,7 @@
 
 (terr
  #:err #rx"not declared as a set name"
- "1 Block \n 1.1 Let x in A")
+ "1 Block for Intro \n 1.1 Let x in A")
 
 ;; ----------------------------------------
 ;; check-derive
@@ -93,7 +93,8 @@
 ;; getln
 (terr
  #:err #rx"not available"
- "1 Block \n 1.1 Assume A \n 2 Derive A or B by OrIntroL on #1.1")
+ "1 Block for Intro \n 1.1 Assume A \n 1.2 Derive A by Repeat on #1.1
+  2 Derive A or B by OrIntroL on #1.1")
 ;; getp
 (terr
  #:err #rx"Axiom.*not defined"
@@ -103,7 +104,8 @@
  "1 Want A and B \n 2 Derive A by AndElimL on #1")
 (terr
  #:err #rx"refers to a block"
- "1 Block \n 2 Derive A by AndElimL on #1")
+ "1 Block for Intro \n 1.1 Assume A \n 1.2 Derive A by Repeat on #1.1
+  2 Derive A by AndElimL on #1")
 ;; getb
 (terr
  #:err #rx"requires a reference to a block"
@@ -132,7 +134,7 @@
 
 ;; Implies
 (tok "Axiom 1: A implies B \n Axiom 2: A \n 1 Derive B by ImpliesElim on Axiom 1, Axiom 2")
-(tok "1 Block \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
+(tok "1 Block for ImpliesIntro \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
 2 Derive A implies (A and A) by ImpliesIntro on #1")
 
 (terr "Axiom 1: A \n 1 Derive A by ImpliesElim on Axiom 1, Axiom 1" #:err (badarg))
@@ -140,18 +142,20 @@
       #:err (badarg))
 (terr "Axiom 1: A implies B \n Axiom 2: A \n 1 Derive C by ImpliesElim on Axiom 1, Axiom 2"
       #:err (badr))
-(terr "1 Block \n 1.1 Let x in NN \n 1.2 Assume A
-2 Derive A implies A by ImpliesIntro on #1" #:err #rx"starts with a Let")
-(terr "1 Block \n 2 Derive A implies A by ImpliesIntro on #1" #:err #rx"single Assume")
-(terr "1 Block \n 1.1 Assume A \n 1.2 Assume B
-2 Derive B implies B by ImpliesIntro on #1" #:err #rx"single Assume")
-(terr "1 Block \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
+(terr "1 Block for ImpliesIntro \n 1.1 Let x in NN \n 1.2 Assume A
+2 Derive A implies A by ImpliesIntro on #1" #:err #rx"Let statement is not allowed here")
+(terr "1 Block for ImpliesIntro
+ 2 Derive A implies A by ImpliesIntro on #1" #:err #rx"Expected an Assume")
+(terr "1 Block for ImpliesIntro \n 1.1 Assume A \n 1.2 Assume B
+2 Derive B implies B by ImpliesIntro on #1" #:err #rx"Assume statement is not allowed here")
+(terr "1 Block for ImpliesIntro \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
 2 Derive A implies (A and B) by ImpliesIntro on #1" #:err (badr))
-(terr "1 Block \n 1.1 Assume A \n 1.2 Block
-2 Derive A implies A by ImpliesIntro on #1" #:err #rx"nested block")
-(terr "1 Block \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
+(terr "1 Block for ImpliesIntro \n 1.1 Assume A
+1.2 Block for Intro \n 1.2.1 Assume B \n 1.2.2 Derive B by Repeat on #1.2.1
+2 Derive A implies A by ImpliesIntro on #1" #:err #rx"must end with a Derive")
+(terr "1 Block for ImpliesIntro \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
 2 Derive A implies B by ImpliesIntro on #1" #:err (badr))
-(terr "1 Block \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
+(terr "1 Block for ImpliesIntro \n 1.1 Assume A \n 1.2 Derive A and A by AndIntro on #1.1, #1.1
 2 Derive B implies (A and A) by ImpliesIntro on #1" #:err (badr))
 
 ;; Iff
@@ -187,23 +191,24 @@
 
 ;; Forall Intro
 (tok "Axiom 102: ∀ x ∈ NN, R(x)
-1 Block \n 1.1 Let a in NN \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x := a
+1 Block for ForAllIntro \n 1.1 Let a in NN \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x := a
 2 Derive forall a in NN, R(a) by ForAllIntro on #1")
 
-(terr "1 Block \n 1.1 Assume A
-2 Derive forall x in NN, A by ForAllIntro on #1" #:err #rx"no Let")
-(terr "1 Block \n 1.1 Let x in NN \n 1.2 Assume A
-2 Derive forall x in NN, B by ForAllIntro on #1" #:err #rx"not allow.*Assume")
-(terr "1 Block \n 1.1 Let x in NN \n 1.2 Block
+(terr "1 Block for ForAllIntro \n 1.1 Assume A
+2 Derive forall x in NN, A by ForAllIntro on #1" #:err #rx"should have a Let")
+(terr "1 Block for ForAllIntro \n 1.1 Let x in NN \n 1.2 Assume A
+2 Derive forall x in NN, B by ForAllIntro on #1" #:err #rx"Assume statement is not allowed here")
+(terr "1 Block for ForAllIntro \n 1.1 Let x in NN 
+1.2 Block for ImpliesIntro \n 1.2.1 Assume A \n 1.2.2 Derive A by Repeat on #1.2.1
 2 Derive forall x in NN, A by ForAllIntro on #1" #:err #rx"end with a Derive")
 (terr "Axiom 102: ∀ x ∈ NN, R(x)
-1 Block \n 1.1 Let a in NN \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x := a
+1 Block for ForAllIntro \n 1.1 Let a in NN \n 1.2 Derive R(a) by ForAllElim on Axiom 102 with x := a
 2 Derive forall a in NN, C by ForAllIntro on #1" #:err (badr))
 
 ;; Exists Elim
 (tok "Axiom 1: exists n in NN, GE(n, 0)
 Axiom 2: forall n in NN, GE(n,0) implies Z(0)
-1 Block
+1 Block for ExistsElim
   1.1 Let m in NN
   1.2 Assume GE(m, 0)
   1.3 Derive Z(0) by Axiom 2 with n := m on #1.2
@@ -211,14 +216,14 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 
 (terr "Axiom 1: exists n in NN, GE(n, 0)
 Axiom 2: forall n in NN, GE(n,0) implies Z(0)
-1 Block
+1 Block for ExistsElim
 2 Derive Z(0) by ExistsElim on Axiom 1, #1"
-      #:err #rx"no Let statement")
+      #:err #rx"Expected a Let statement")
 
 (terr "Axiom 1: exists n in NN, GE(n, 0)
 Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 Axiom 3: A and B
-1 Block
+1 Block for ExistsElim
   1.1 Let m in NN
   1.2 Assume Other(m)
   1.3 Derive A by AndElimL on Axiom 3
@@ -227,25 +232,25 @@ Axiom 3: A and B
 
 (terr "Axiom 1: exists n in NN, GE(n, 0)
 Axiom 2: A and B
-1 Block
+1 Block for ExistsElim
   1.1 Let m in NN
   1.3 Derive A by AndElimL on Axiom 2
 2 Derive A by ExistsElim on Axiom 1, #1"
-      #:err #rx"single Assume statement")
+      #:err #rx"Derive statement is not allowed here")
 
 (terr "Axiom 1: exists n in NN, GE(n, 0)
 Axiom 2: forall n in NN, GE(n,0) implies Z(0)
-1 Block
+1 Block for ExistsElim
   1.1 Let m in NN
   1.2 Assume GE(m, 0)
   1.3 Derive Z(0) by Axiom 2 with n := m on #1.2
-  1.4 Block
+  1.4 Want Blah
 2 Derive Z(0) by ExistsElim on Axiom 1, #1"
       #:err #rx"end with a Derive")
 
 (terr "Axiom 1: exists n in NN, GE(n, 0)
 Axiom 2: forall n in NN, GE(n,0) implies Z(0)
-1 Block
+1 Block for ExistsElim
   1.1 Let m in NN
   1.2 Assume GE(m, 0)
   1.3 Derive GE(m,0) or X by OrIntroL on #1.2
@@ -254,7 +259,7 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 
 (terr "Axiom 1: exists n in NN, GE(n, 0)
 Axiom 2: forall n in NN, GE(n,0) implies Z(0)
-1 Block
+1 Block for ExistsElim
   1.1 Let m in NN
   1.2 Assume GE(m, 0)
   1.3 Derive Z(0) by Axiom 2 with n := m on #1.2
@@ -266,8 +271,8 @@ Axiom 2: forall n in NN, GE(n,0) implies Z(0)
 1 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with a := 1")
 
 (terr "Axiom 1: LE(1,2) \n 1 Derive A by ExistsIntro on Axiom 1 with a := 1" #:err (badr))
-(terr "Axiom 1: LE(1,2) \n 1 Block \n 1.1 Let a in NN
-1.2 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with a := 1"
+(terr "Axiom 1: LE(1,2) \n 1 Block for Intro \n 1.1 Let a in NN
+  1.2 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with a := 1"
       #:err #rx"already in scope")
 (terr "Axiom 1: LE(1,2)
 1 Derive exists a in NN, LE(a,2) by ExistsIntro on Axiom 1 with x := 1"
@@ -293,13 +298,13 @@ Axiom 2: GE(2,1)
 
 ;; Relaxed Introduction
 (tok "Axiom 1: A and B
-1 Block \n 1.1 Let x,y in NN \n 1.2 Assume LE(x,y) \n 1.3 Derive A by AndElimL on Axiom 1
+1 Block for Intro \n 1.1 Let x,y in NN \n 1.2 Assume LE(x,y) \n 1.3 Derive A by AndElimL on Axiom 1
 2 Derive forall x,y in NN, LE(x,y) implies A by Intro on #1")
 (tok "Axiom 1: A and B
-1 Block \n 1.1 Assume C \n 1.2 Derive A by AndElimL on Axiom 1
+1 Block for Intro \n 1.1 Assume C \n 1.2 Derive A by AndElimL on Axiom 1
 2 Derive C implies A by Intro on #1")
 (tok "Axiom 1: A and B
-1 Block \n 1.1 Let x,y in NN \n 1.2 Derive A by AndElimL on Axiom 1
+1 Block for Intro \n 1.1 Let x,y in NN \n 1.2 Derive A by AndElimL on Axiom 1
 2 Derive forall x,y in NN, A by Intro on #1")
 
 ;; FIXME: error tests
@@ -338,37 +343,37 @@ Axiom 2: GE(2,1)
 
 ;; Contradiction
 (tok "Axiom 1: not A
-1 Block
+1 Block for Contradiction
   1.1 Assume A and B
   1.2 Derive A by AndElimL on #1.1
   1.3 Derive A and not A by AndIntro on #1.2, Axiom 1
 2 Derive not(A and B) by Contradiction on #1")
 
 (terr "Axiom 1: not A
-1 Block
+1 Block for Contradiction
   1.1 Let x in NN
-2 Derive not(A and B) by Contradiction on #1" #:err #rx"starts with a Let")
+2 Derive not(A and B) by Contradiction on #1" #:err #rx"Let statement is not allowed here")
 
 (terr "Axiom 1: not A
-1 Block
+1 Block for Contradiction
   1.1 Assume A and B
   1.2 Assume C
-2 Derive not(A and B) by Contradiction on #1" #:err #rx"single Assume")
+2 Derive not(A and B) by Contradiction on #1" #:err #rx"Assume statement is not allowed here")
 
 (terr "Axiom 1: not A
-1 Block
+1 Block for Contradiction
   1.1 Assume A and B
-  1.2 Block
+  1.2 Want Blah
 2 Derive not(A and B) by Contradiction on #1" #:err #rx"end with a Derive")
 
 (terr "Axiom 1: not A
-1 Block
+1 Block for Contradiction
   1.1 Assume A and B
   1.2 Derive A by AndElimL on #1.1
 2 Derive not(A and B) by Contradiction on #1" #:err #rx"end in a contradiction")
 
 (terr "Axiom 1: not A
-1 Block
+1 Block for Contradiction
   1.1 Assume A and B
   1.2 Derive A by AndElimL on #1.1
   1.3 Derive A and not A by AndIntro on #1.2, Axiom 1
