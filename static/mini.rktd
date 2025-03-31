@@ -14,6 +14,10 @@
 
  (body
   (div ([class "mini_main_area"])
+       (div ([class "mini_loader_area"])
+            (select ([id "loader"] [for "loader"])
+                    (option ([id "load_nothing"] [selected "selected"])))
+            (button ([id "load"] [type "button"] [disabled "disabled"]) "Load"))
        (h1 "Proof Checker")
        (div ([id "proof_area"])
             (div () (label ([for "prooftext"]) "Proof"))
@@ -27,11 +31,7 @@
             (div ()
                  (span
                   (button ([id "checkproof"] [type "button"])
-                          "Check proof"))
-                 (span
-                  (select ([id "loader"] [for "loader"])
-                          (option ([id "load_nothing"] [selected "selected"])))
-                  (button ([id "load"] [type "button"] [disabled "disabled"]) "Load"))))
+                          "Check proof"))))
 
        (div ([id "output_area"] [style "display: none"])
             (div ([id "wait_for_server"] [class "waiting"] [style "display: none"])

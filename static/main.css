@@ -20,6 +20,13 @@ h1, h2, h3 {
     padding: 1ex;
     margin: 0.2ex 1ex;
     height: 100%;
+    position: relative;
+}
+
+.mini_loader_area {
+    position: absolute;
+    right: 1ex;
+    top: 1ex;
 }
 
 p, .par {
