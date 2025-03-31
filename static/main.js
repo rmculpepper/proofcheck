@@ -1,5 +1,7 @@
 // ============================================================
 
+var config = null;
+
 /* Compiled templates, represented as functions that take objects
  * and produce HTML strings. Initialized by initialize.
  */
@@ -10,11 +12,26 @@
  */
 function initialize() {
     // template_x = Handlebars.compile($('#template_x').html());
+    ajax_json({
+        url: "config.json",
+        method: "GET",
+        success: function(resp) {
+            config = resp;
+            $.each(config.fill, function(index, obj) {
+                let option = $("<option>");
+                option.text(obj.name);
+                $("#loader").append(option);
+            });
+        },
+        error: function() { }
+    });
 
     $("#prooftext").on("change", (event) => prooftext_changed());
     $("#prooftext").on("input", (event) => prooftext_changed());
 
     $("#checkproof").on("click", (event) => check_prooftext());
+    $("#loader").on("input", (event) => select_prooftext());
+    $("#load").on("click", (event) => load_prooftext());
 }
 
 /* If the proof text has changed, mark the output as outdated.
@@ -23,13 +40,36 @@ function prooftext_changed() {
     $("#out_of_date").show();
 }
 
+function select_prooftext() {
+    let index = $("#loader").prop("selectedIndex");
+    if (index > 0) {
+        $("#load").attr("disabled", false);
+    } else {
+        $("#load").attr("disabled", true);
+    }
+}
+
+function load_prooftext() {
+    let index = $("#loader").prop("selectedIndex");
+    if (index > 0) {
+        let fill = config.fill[index-1];
+        let program = "";
+        $.each(fill.lines, function(index, line) {
+            program = program + line + "\n";
+        });
+        $("#prooftext").text(program);
+        $("#load_nothing").prop("selected", true);
+        $("#load").attr("disabled", true);
+    }
+}
+
 /* Submit the prooftext for checking, then update the output display.
  */
 function check_prooftext() {
     $("#out_of_date").hide(); // FIXME: race condition
     $("#wait_for_server").show();
     ajax_json({
-        url: "check",
+        url: config.check_url || "check",
         method: "POST",
         data: { proof: $("#prooftext").val() },
         success: function(resp) {
@@ -50,6 +90,7 @@ function check_prooftext() {
             }
             $("#wait_for_server").hide();
             $("#output_area").show();
+            $("#prooftext").focus();
         },
         error: function() {
             $("#output_inner_area").html("<p>The server raised an exception.</p>");

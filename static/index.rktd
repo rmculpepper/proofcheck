@@ -213,6 +213,9 @@ Axiom 2: forall n in NN, Odd(n) iff (exists k in NN, n = 2*k+1)
 2 Derive not A implies not (A and B) by ImpliesIntro on #1
 "))
 
-            #|/div:docs|#))
+            #|/div:docs|#)
 
+       (div
+        (a ([href "mini.html"] [onclick "window.open('mini.html', '_blank', 'popup');"])
+           "Mini Window")))
   (script "initialize();")))

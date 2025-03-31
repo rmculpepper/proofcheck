@@ -1,0 +1,55 @@
+{
+    "check_url": "http://localhost:17180/check",
+    "fill": [
+        {"name": "Conjunction example",
+         "lines": [
+             "Axiom 1: Contains('water', 'hydrogen') and Contains('water', 'oxygen')",
+             "Axiom 2: Contains('rust', 'oxygen') and Contains('rust', 'iron')",
+             "", "Theorem: Contains('rust', 'oxygen') and Contains('water', 'oxygen')"
+         ]
+        },
+        {"name": "Implication example",
+         "lines": [
+             "Axiom 1: Mon implies CS220",
+             "Axiom 2: Wed implies CS220",
+             "Axiom 3: CS220 implies Happy",
+             "", "Theorem: Mon implies Happy"
+         ]
+        },
+        {"name": "Disjunction example",
+         "lines": [
+             "Axiom 1: Sun implies (Bike and Garden)",
+             "Axiom 2: Rain implies Clean",
+             "", "Theorem: (Rain or Sun) implies (Garden or Clean)"
+         ]
+        },
+        {"name": "Universal example",
+         "lines": [
+             "Declare A = {'Mouse', 'Lion', ...}",
+             "Axiom 1: Small('Mouse')",
+             "Axiom 2: Brave('Lion')",
+             "Axiom 3: forall a in A, forall b in A, (Small(a) and Brave(b)) implies Fears(a,b)",
+             "", "Theorem: Fears('Mouse', 'Lion')"
+         ]
+        },
+        {"name": "Existential example",
+         "lines": [
+             "Axiom 1: forall n in NN, Even(n) iff (exists k in NN, n = 2*k)",
+             "Axiom 2: forall n in NN, Odd(n) iff (exists k in NN, n = 2*k + 1)",
+             "", "Theorem: forall m in NN, Odd(m) implies Even(m+1)"
+         ]
+        },
+        {"name": "Indirect example",
+         "lines": [
+             "Axiom 1: Stranger or Household",
+             "Axiom 2: Stranger implies Bark",
+             "", "Theorem: not Bark implies Household"
+         ]
+        },
+        {"name": "Contradiction example",
+         "lines": [
+             "Theorem: not A implies not (A and B)"
+         ]
+        }
+    ]
+}

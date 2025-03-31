@@ -15,6 +15,13 @@ h1, h2, h3 {
     height: 100%;
 }
 
+.mini_main_area {
+    background-color: white;
+    padding: 1ex;
+    margin: 0.2ex 1ex;
+    height: 100%;
+}
+
 p, .par {
     max-width: 75ex;
     margin: 1ex 0pt;

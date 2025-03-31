@@ -15,6 +15,6 @@
       (display-xml/content xml out #:indentation 'none #;'scan))))
 
 (module+ main
-  (for ([page '("index")])
+  (for ([page '("index" "mini")])
     (printf "Making ~a.html\n" page)
     (make-html here (format "~a.rktd" page) (format "~a.html" page))))
