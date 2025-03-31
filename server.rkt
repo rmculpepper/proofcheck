@@ -32,23 +32,8 @@
     (lambda (req)
       (define arg (bytes->jsexpr (request-post-data/raw req)))
       (define result (handle-check arg))
-      (response/jsexpr result))]
+      (response/jsexpr result #:headers headers))]
    ))
-
-
-(define axioms6 (proof-decls (string->proof "
-Axiom 1: Small('Mouse')
-Axiom 2: Brave('Lion')
-Axiom 3: ∀ a,b ∈ A, Fears(a,b) ⇒ ¬Fears(b,a)
-Axiom 4: ∀ a,b ∈ A, Small(a) ⇒ Brave(b) ⇒ Fears(a,b)
-Axiom 5: ∀ n ∈ NN, Even(n) ⇔ (∃ k ∈ NN, n = 2*k)
-Axiom 6: ∀ n ∈ NN, Odd(n) ⇔ (∃ k ∈ NN, n = 2*k + 1)
-Axiom 7: ∀ n ∈ NN, Even(n) ∨ Odd(n)
-Axiom 8: ∀ d,n ∈ NN, Divides(d,n) ⇔ (∃ k ∈ NN, n = k*d)
-Axiom 9: ∀ n ∈ NN, Composite(n) ⇔ (∃ d ∈ NN, (1 < d) ∧ (d < n) ∧ Divides(d, n))
-Axiom 10: ∀ n,d,q,r ∈ NN, Div(n,d,q,r) ⇔ (n = q*d + r ∧ (0 < r) ∧ (r < d))
-Axiom 11: ∀ n,d,q1,r1,q2,r2 ∈ NN, Div(n,d,q1,r1) ⇒ Div(n,d,q2,r2) ⇒ (q1 = q2) ∧ (r1 = r2)
-")))
 
 ;; handle-check : JSExpr -> JSExpr
 (define (handle-check arg)
@@ -65,7 +50,7 @@ Axiom 11: ∀ n,d,q1,r1,q2,r2 ∈ NN, Div(n,d,q1,r1) ⇒ Div(n,d,q2,r2) ⇒ (q1 
                        (lambda (e)
                          ((error-display-handler) (exn-message e) e)
                          (escape (hash 'v 1 'format "text" 'error (exn-message e))))])
-        (define pf (string->proof proof-text #:prefix axioms6))
+        (define pf (string->proof proof-text))
         (define cs (check-proof pf))
         (define msg
           (cond [(proof-qed? pf)

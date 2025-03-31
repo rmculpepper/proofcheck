@@ -60,6 +60,7 @@ function load_prooftext() {
         $("#prooftext").text(program);
         $("#load_nothing").prop("selected", true);
         $("#load").attr("disabled", true);
+        prooftext_changed();
     }
 }
 
