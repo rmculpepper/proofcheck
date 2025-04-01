@@ -115,7 +115,8 @@
   [$WS+ (:+ $WS)])
 
 (define ((misspelled alts) word start end)
-  (reject `(v "Bad token. Perhaps you misspelled one of the following rule names."
+  (reject `(v ,(err:ln)
+              "Bad token. Perhaps you misspelled one of the following rule names."
               (h "Invalid word: " ,(rich 'program-text word))
               (h "Suggestions: "
                  ,@(add-between (for/list ([alt alts]) (rich 'program-text alt)) ", "))
@@ -266,7 +267,8 @@
              (if (symbol? tok) reserved tok))
            => (lambda (reserved)
                 (if (string? reserved)
-                    (reject `(v "Bad token. Incorrect capitalization of reserved word."
+                    (reject `(v ,(err:ln)
+                                "Bad token. Incorrect capitalization of reserved word."
                                 (h "Got: " ,(rich 'program-text lexeme))
                                 (h "Expected: " ,(rich 'program-text reserved))
                                 (h "Position: " ,(rich 'srcpair (cons start-pos end-pos)))))
@@ -406,7 +408,7 @@
 
 (define current-lineno (make-parameter #f))
 
-(define (err:ln ln)
+(define (err:ln [ln (current-lineno)])
   (cond [ln `(h "Syntax error on line labeled " ,(rich 'lineno ln))]
         [else `(h "Syntax error")]))
 
@@ -417,7 +419,7 @@
                       #:rts rts))
 
 (define (raise-parser-error ok? name value start end #:rts [rts null])
-  (reject `(v ,(err:ln (current-lineno))
+  (reject `(v ,(err:ln)
               (h "Unexpected token: "
                  ,(rich 'program-text
                         (cond [(memq name '(EOF NEWLINE End-of-Justification))
@@ -563,7 +565,7 @@
      [(Variable+ GETS Expr+)
       (let ([vars $1] [exprs $3])
         (unless (= (length vars) (length exprs))
-          (reject `(v "Bad variable mapping."
+          (reject `(v ,(err:ln) "Bad variable mapping."
                       "The number of variables does not match the number of expressions."
                       (h "Variables: " ,(rich 'vars vars))
                       (h "Expressions: " ,(rich 'exprs exprs)))))
@@ -654,7 +656,7 @@
 (define (apply-on on-args0 rulename f argtypes)
   (match-define (cons srcpair on-args) on-args0)
   (unless (= (length argtypes) (length on-args))
-    (reject `(v "Justification has the wrong number of arguments after ON."
+    (reject `(v ,(err:ln) "Justification has the wrong number of arguments after ON."
                 (h "Rule: " ,(rich 'rule rulename))
                 (h "Expected: " ,(number->string (length argtypes)))
                 (h "Instead got: " ,(number->string (length on-args)))
@@ -714,7 +716,8 @@
                         `(p "The Theorem statement must come before"
                             "the first proof line."))))]
       [(? line?)
-       (reject `(v (h "Proof line not allowed here.")
+       (reject `(v ,(err:ln (line-n v))
+                   (h "Proof line not allowed here.")
                    (p "All proof lines must come before the QED.")))]))
   (define (axloop lines acc)
     (match lines
