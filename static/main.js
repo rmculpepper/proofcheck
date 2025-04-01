@@ -57,10 +57,11 @@ function load_prooftext() {
         $.each(fill.lines, function(index, line) {
             program = program + line + "\n";
         });
-        $("#prooftext").text(program);
+        $("#prooftext").prop("value", program);
         $("#load_nothing").prop("selected", true);
         $("#load").attr("disabled", true);
-        prooftext_changed();
+        $("#out_of_date").hide();
+        $("#output_area").hide();
     }
 }
 

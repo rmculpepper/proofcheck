@@ -335,9 +335,12 @@
     [(list* (token name) _)
      #:when (memq name '(AXIOM DECLARE THEOREM QED))
      (parse-line* toks)]
-    [(list* (and tok (token name)) toks)
-     #:when (memq name '(INTEGER LINENUMBER))
-     (parse-proof-line tok toks)]
+    [(list* (and tok (token 'INTEGER n)) toks)
+     (parameterize ((current-lineno (list n)))
+       (parse-proof-line tok toks))]
+    [(list* (and tok (token 'LINENUMBER ln)) toks)
+     (parameterize ((current-lineno ln))
+       (parse-proof-line tok toks))]
     [(list* tok _)
      (raise-parser-error* tok
                           `[(p "Expected either a line number or the word "
@@ -384,12 +387,28 @@
                               `[(p "Expected" ,(rich 'program-text "by")
                                    "followed by justification.")])]))
 
-(define (parse-line* toks) (line-parser (tokens->lex toks)))
-(define (parse-prop toks) (prop-parser (tokens->lex toks)))
-(define (parse-justification toks) (justification-parser (tokens->lex toks)))
+(define (parse-line* toks)
+  (line-parser (tokens->lex toks)))
+(define (parse-prop toks)
+  (prop-parser (tokens->lex toks)))
+
+(define (parse-justification toks)
+  (match toks
+    [(list* (token 'BY) (and tok (token name id)) _)
+     #:when (memq name '(IDENTIFIER VARIABLE))
+     (raise-parser-error* tok
+                          `[(p "Expected rule name after " ,(rich 'program-text "by")
+                               " but " ,(rich 'program-text id) " is not the name of a rule.")])]
+    [_ (justification-parser (tokens->lex toks))]))
 
 (define (string->prop s)
   (parse-prop (string->tokens s)))
+
+(define current-lineno (make-parameter #f))
+
+(define (err:ln ln)
+  (cond [ln `(h "Syntax error on line labeled " ,(rich 'lineno ln))]
+        [else `(h "Syntax error")]))
 
 (define (raise-parser-error* tok rts)
   (define t (position-token-token tok))
@@ -398,7 +417,7 @@
                       #:rts rts))
 
 (define (raise-parser-error ok? name value start end #:rts [rts null])
-  (reject `(v (h "Syntax error")
+  (reject `(v ,(err:ln (current-lineno))
               (h "Unexpected token: "
                  ,(rich 'program-text
                         (cond [(memq name '(EOF NEWLINE End-of-Justification))
