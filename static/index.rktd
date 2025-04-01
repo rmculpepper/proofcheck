@@ -86,6 +86,7 @@
             #|/div:docs_area|#)
 
        (div
-        (a ([href "mini.html"] [onclick "window.open('mini.html', '_blank', 'popup');"])
+        (a ([href "mini.html"]
+            [onclick "event.preventDefault(); window.open('mini.html', '_blank', 'popup');"])
            "Minimal Version"))))
   (script "initialize();")))
