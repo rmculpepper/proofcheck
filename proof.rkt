@@ -358,7 +358,7 @@
          [(prop:and p q) (values p q)]
          [_ (bad 1 pq "p ∧ q")]))
      (unless (prop=? prop q)
-       (badr "q" `((p ,p) (q ,q)) 'arg #:expect p))]
+       (badr "q" `((p ,p) (q ,q)) 'arg #:expect q))]
     [(j:AndIntro (app getp p) (app getp q))
      (define dprop (prop:and p q))
      (unless (prop=? prop dprop)
