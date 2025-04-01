@@ -332,11 +332,12 @@
          [_ (reject (err:ref-not-block r))])]))
   (define (bad argn got-p form [mvenv '()] [mvwhy #f]
                #:more [more null]
+               #:late [latemore null]
                #:expect [expected #f])
     (define what
       (cond [argn `(h "The rule's " ,(n->nth argn) " argument")]
             [else "An intermediate result"]))
-    (reject (err:incorrect-prop what got-p form mvenv mvwhy more expected)))
+    (reject (err:incorrect-prop what got-p form mvenv mvwhy more expected latemore)))
   (define (badr [form #f] [mvenv '()] [mvwhy #f]
                 #:more [more null]
                 #:expect [expected #f])
@@ -558,6 +559,11 @@
            [(prop:implies pp qq)
             #:when (prop=? argp pp)
             qq]
+           [(prop:iff pp qq)
+            (bad #f improp "p ⇒ q" `((p ,argp))
+                 #:late `[(h "Maybe missing " ,(rich 'program-text "forward") " or "
+                             ,(rich 'program-text "backward") " before "
+                             ,(rich 'program-text "on") ".")])]
            [_ (bad #f improp "p ⇒ q" `((p ,argp)))])))
      (unless (prop=? prop result-prop)
        (badr #:expect result-prop))]
@@ -837,13 +843,14 @@
          "but it does not.")
       (h "Block: " ,(rich 'block-ref ref))))
 
-(define (err:incorrect-prop what got-p form mvenv mvwhy more expected)
+(define (err:incorrect-prop what got-p form mvenv mvwhy more expected [latemore null])
   `(v (h ,what ,(if form " does not have the correct form." " is incorrect."))
       ,@(if form `[(h "Required form: " ,(rich 'pattern form))] '())
       ,@(err-part:mvenv mvenv mvwhy)
       ,@more
       ,@(if expected `[(h "Expected: " ,(rich 'prop expected))] '())
-      (h "Instead found: " ,(rich 'prop got-p))))
+      (h "Instead found: " ,(rich 'prop got-p))
+      ,@latemore))
 
 (define (err-part:mvenv mvenv mvwhy)
   (define (explain-why)

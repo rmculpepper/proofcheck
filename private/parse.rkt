@@ -176,6 +176,16 @@
         "AndElim" (misspelled '("AndElimL" "AndElimR"))
         "OrIntro" (misspelled '("OrIntroL" "OrIntroR"))
         "IffElim" (misspelled '("IffElimF" "IffElimB"))
+
+        "ConjElim" (misspelled '("AndElimL" "AndElimR"))
+        "ConjElimL" (misspelled '("AndElimL"))
+        "ConjElimR" (misspelled '("AndElimR"))
+        "ConjIntro" (misspelled '("AndIntro"))
+
+        "DisjIntro" (misspelled '("OrIntroL" "OrIntroR"))
+        "DisjIntroL" (misspelled '("OrIntroL"))
+        "DisjIntroR" (misspelled '("OrIntroR"))
+        "DisjElim" (misspelled '("OrElim"))
         ))
 
 (define lex
