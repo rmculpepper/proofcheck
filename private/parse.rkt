@@ -120,7 +120,8 @@
               (h "Invalid word: " ,(rich 'program-text word))
               (h "Suggestions: "
                  ,@(add-between (for/list ([alt alts]) (rich 'program-text alt)) ", "))
-              (h "Position: " ,(rich 'srcpair (cons start end))))))
+              (h "Position: " ,(rich 'srcpair (cons start end))))
+          #:at (cons start end)))
 
 (define reserved-words
   (hash "Derive"  'DERIVE
@@ -271,7 +272,8 @@
                                 "Bad token. Incorrect capitalization of reserved word."
                                 (h "Got: " ,(rich 'program-text lexeme))
                                 (h "Expected: " ,(rich 'program-text reserved))
-                                (h "Position: " ,(rich 'srcpair (cons start-pos end-pos)))))
+                                (h "Position: " ,(rich 'srcpair (cons start-pos end-pos))))
+                            #:at (cons start-pos end-pos))
                     (reserved start-pos end-pos)))]
           [(char-lower-case? (string-ref lexeme 0))
            (token-VARIABLE (string->symbol lexeme))]
@@ -421,19 +423,19 @@
 (define (raise-parser-error ok? name value start end #:rts [rts null])
   (reject `(v ,(err:ln)
               (h "Unexpected token: "
-                 ,(rich 'program-text
-                        (cond [(memq name '(EOF NEWLINE End-of-Justification))
-                               " "]
-                              [else
-                               (bytes->string/utf-8
-                                (subbytes (current-program-text)
-                                          (sub1 (position-offset start))
-                                          (sub1 (position-offset end))))]))
+                 ,@(cond [(memq name '(EOF NEWLINE End-of-Justification))
+                          null]
+                         [else
+                          (list (rich 'program-text
+                                      (bytes->string/utf-8
+                                       (subbytes (current-program-text)
+                                                 (sub1 (position-offset start))
+                                                 (sub1 (position-offset end))))))])
                  " ("
-                 ,(rich 'token-name name)
-                 ;; ,@(if value
-                 ;;       `(", " ,(rich 'token-value value))
-                 ;;       '())
+                 ,(rich 'token-name
+                        (case name
+                          [(End-of-Justification) 'NEWLINE]
+                          [else name]))
                  ")")
               (h "Position: "
                  ,(rich 'srcpair (cons start end)))
@@ -447,7 +449,10 @@
                       [(memq name '(End-of-Justification))
                        `((p "The" ,(rich 'program-text "Derive")
                             "statement's justification is incomplete."))]
-                      [else '()]))))
+                      [else '()]))
+          #:at (case name
+                 [(NEWLINE EOF End-of-Justification) #f]
+                 [else (cons start end)])))
 
 (match-define (list line-parser
                     prop-parser
@@ -560,7 +565,17 @@
      [(HASH LineNumber)
       (ref:line $2)]
      [(AXIOM INTEGER)
-      (ref:axiom $2)]]
+      (ref:axiom $2)]
+     [(LineNumber)
+      (reject `(v ,(err:ln) "Bad syntax for proposition reference in justification."
+                  (h "Maybe missing " ,(rich 'program-text "#") " before line number.")
+                  ,@(if (= (length $1) 1)
+                        `((h "Maybe missing " ,(rich 'program-text "Axiom") " before axiom index."))
+                        null)
+                  (h "Got: " ,(rich 'lineno $1))
+                  (h "Position: " ,(rich 'srcpair (cons $1-start-pos $1-end-pos))))
+              #:at (cons $1-start-pos $1-end-pos))]]
+
     [VarMap
      [(Variable+ GETS Expr+)
       (let ([vars $1] [exprs $3])
@@ -568,7 +583,8 @@
           (reject `(v ,(err:ln) "Bad variable mapping."
                       "The number of variables does not match the number of expressions."
                       (h "Variables: " ,(rich 'vars vars))
-                      (h "Expressions: " ,(rich 'exprs exprs)))))
+                      (h "Expressions: " ,(rich 'exprs exprs)))
+                  #:at (cons $n-start-pos $n-end-pos)))
         (map cons vars exprs))]]
     [Direction
      [(FORWARD) 'forward]
@@ -660,7 +676,8 @@
                 (h "Rule: " ,(rich 'rule rulename))
                 (h "Expected: " ,(number->string (length argtypes)))
                 (h "Instead got: " ,(number->string (length on-args)))
-                (h "Source location: " ,(rich 'srcpair srcpair)))))
+                (h "Position: " ,(rich 'srcpair srcpair)))
+            #:at srcpair))
   (apply f on-args))
 
 ;; ============================================================

@@ -6,6 +6,7 @@
          racket/match
          racket/list
          racket/tcp
+         parser-tools/lex
          web-server/servlet
          web-server/servlet-env
          xml
@@ -42,10 +43,12 @@
     (error 'server "no proof included"))
   (let/ec escape
     (parameterize ((current-reject
-                    (lambda (rt)
+                    (lambda (rt pos)
                       (define text (rich-text->string rt))
                       (define html (xexpr->string ((rich-text->xexpr wrap-div) rt)))
-                      (escape (hash 'v 1 'format "html" 'error text 'errorh html)))))
+                      (escape (hash 'v 1 'format "html" 'error text 'errorh html
+                                    'start (and pos (sub1 (position-offset (car pos))))
+                                    'end (and pos (sub1 (position-offset (cdr pos)))))))))
       (with-handlers ([exn:fail?
                        (lambda (e)
                          ((error-display-handler) (exn-message e) e)

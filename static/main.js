@@ -1,6 +1,8 @@
 // ============================================================
 
 var config = null;
+var last_err_start = null;
+var last_err_end = null;
 
 /* Compiled templates, represented as functions that take objects
  * and produce HTML strings. Initialized by initialize.
@@ -32,12 +34,14 @@ function initialize() {
     $("#checkproof").on("click", (event) => check_prooftext());
     $("#loader").on("input", (event) => select_prooftext());
     $("#load").on("click", (event) => load_prooftext());
+    $("#selecterr").on("click", (event) => select_last_error());
 }
 
 /* If the proof text has changed, mark the output as outdated.
  */
 function prooftext_changed() {
     $("#out_of_date").show();
+    $("#selecterr").attr("disabled", true);
 }
 
 function select_prooftext() {
@@ -65,6 +69,12 @@ function load_prooftext() {
     }
 }
 
+function select_last_error() {
+    let prooftext = document.getElementById("prooftext");
+    prooftext.focus();
+    prooftext.setSelectionRange(last_err_start, last_err_end);
+}
+
 /* Submit the prooftext for checking, then update the output display.
  */
 function check_prooftext() {
@@ -89,6 +99,13 @@ function check_prooftext() {
                 let pre = $("<pre>");
                 pre.html(resp.error || resp.pass);
                 area.html(pre);
+            }
+            if (resp.start && resp.end) {
+                last_err_start = resp.start;
+                last_err_end = resp.end;
+                $("#selecterr").attr("disabled", false);
+            } else {
+                $("#selecterr").attr("disabled", true);
             }
             $("#wait_for_server").hide();
             $("#output_area").show();

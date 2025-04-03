@@ -45,7 +45,9 @@
                             [placeholder "Enter your proof here."])))
             (div ()
                  (button ([id "checkproof"] [type "button"])
-                         "Check proof")))
+                         "Check proof")
+                 (button ([id "selecterr"] [type "button"] [disabled "disabled"])
+                         "Select error")))
 
        (div ([id "output_area"] [style "display: none"])
             (h2 "Output")

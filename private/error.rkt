@@ -14,7 +14,7 @@
 ;; current-reject : Parameter of (RichText -> None)
 (define current-reject
   (make-parameter
-   (lambda (rt)
+   (lambda (rt pos)
      (raise-user-error (rich-text->string rt)))))
 
 (define (error* fmt . args)
@@ -22,10 +22,10 @@
   (define msg (apply format fmt args))
   (reject0 (cons 'v (append (reverse (error-info)) (list msg)))))
 
-(define (reject . rts)
-  (reject0 (cons 'v (append (reverse (error-info)) rts))))
+(define (reject #:at [pos #f] . rts)
+  (reject0 (cons 'v (append (reverse (error-info)) rts)) pos))
 
-(define (reject0 rt) ((current-reject) rt))
+(define (reject0 rt [pos #f]) ((current-reject) rt pos))
 
 ;; A RichText is one of
 ;; - String
