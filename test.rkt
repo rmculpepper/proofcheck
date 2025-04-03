@@ -102,8 +102,8 @@
 ;; ----------------------------------------
 ;; check-derive
 
-(define (badarg) #rx"The rule's.*argument")
-(define (badr) #rx"The rule's result")
+(define (badarg) #rx"The rule's .* argument does not have the correct form")
+(define (badr) #rx"The stated proposition does not match the rule's result")
 
 ;; getln
 (terr
@@ -130,7 +130,7 @@
 (tok "Axiom 1: A and B \n 1 Derive A by AndElimL on Axiom 1")
 (tok "Axiom 1: A and B \n 1 Derive B by AndElimR on Axiom 1")
 (tok "Axiom 1: A \n Axiom 2: B \n 1 Derive A and B by AndIntro on Axiom 1, Axiom 2")
-(terr "Axiom 1: A and B \n 1 Derive B by AndElimL on Axiom 1" #:err (badarg))
+(terr "Axiom 1: A and B \n 1 Derive B by AndElimL on Axiom 1" #:err (badr))
 (terr "Axiom 1: A \n Axiom 2: B \n 1 Derive A by AndIntro on Axiom 1, Axiom 2" #:err (badr))
 
 ;; Or
@@ -138,8 +138,8 @@
 (tok "Axiom 1: A \n 1 Derive B or A by OrIntroR on Axiom 1")
 (tok "Axiom 1: A or B \n Axiom 2: A implies C \n Axiom 3: B implies C
 1 Derive C by OrElim on Axiom 1, Axiom 2, Axiom 3")
-(terr "Axiom 1: A \n 1 Derive B or B by OrIntroL on Axiom 1" #:err (badarg))
-(terr "Axiom 1: A \n 1 Derive B or B by OrIntroR on Axiom 1" #:err (badarg))
+(terr "Axiom 1: A \n 1 Derive B or B by OrIntroL on Axiom 1" #:err (badr))
+(terr "Axiom 1: A \n 1 Derive B or B by OrIntroR on Axiom 1" #:err (badr))
 (terr "Axiom 1: A or B \n Axiom 2: A implies C \n Axiom 3: B implies C
 1 Derive C by OrElim on Axiom 1, Axiom 2, Axiom 2" #:err (badarg))
 (terr "Axiom 1: A or B \n Axiom 2: A implies C \n Axiom 3: B implies D

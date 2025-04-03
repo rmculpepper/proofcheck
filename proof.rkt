@@ -334,15 +334,20 @@
                #:more [more null]
                #:late [latemore null]
                #:expect [expected #f])
-    (define what
-      (cond [argn `(h "The rule's " ,(n->nth argn) " argument")]
-            [else "An intermediate result"]))
-    (reject (err:incorrect-prop what got-p form mvenv mvwhy more expected latemore)))
+    (define wrong
+      (cond [argn `(h "The rule's " ,(n->nth argn) " argument does not have the correct form.")]
+            [else "An intermediate result does not have the correct form."]))
+    (reject (err:wrong-prop wrong "Required form" form
+                            (append (err-part:mvenv mvenv mvwhy) more)
+                            "Expected" expected "Instead found" got-p
+                            latemore)))
   (define (badr [form #f] [mvenv '()] [mvwhy #f]
                 #:more [more null]
                 #:expect [expected #f])
-    (define what "The rule's result")
-    (reject (err:incorrect-prop what prop form mvenv mvwhy more expected)))
+    (define wrong "The stated proposition does not match the rule's result.")
+    (reject (err:wrong-prop wrong "Result form" form
+                            (append (err-part:mvenv mvenv mvwhy) more)
+                            "Rule derives" expected "Program says" prop)))
   (match just
     ;; ----------------------------------------
     [(j:AndElimL (app getp pq))
@@ -481,14 +486,15 @@
      (define hz (match lastd [(derive p _) p]))
      (define body* (prop-subst pbody (list (cons pv (expr:var hv)))))
      (unless (prop=? ha body*)
-       (reject
-        (err:incorrect-prop
-         "The block's assumption" ha "P(y)" null #f
-         `[" where"
-           (h "  " ,(rich 'pattern "P(x)") " = " ,(rich 'prop pbody))
-           (h "  " ,(rich 'pattern "x") " = " ,(rich 'var pv))
-           (h "  " ,(rich 'pattern "y") " = " ,(rich 'var hv))]
-         body*)))
+       (reject (err:wrong-prop
+                "The block's assumption does not have the correct form."
+                "Required assumption form" "P(y)"
+                `[" where"
+                  (h "  " ,(rich 'pattern "P(x)") " = " ,(rich 'prop pbody))
+                  (h "  " ,(rich 'pattern "x") " = " ,(rich 'var pv))
+                  (h "  " ,(rich 'pattern "y") " = " ,(rich 'var hv))]
+                "Expected" body*
+                "Instead found" ha)))
      (let ([fv (prop-fvs hz (in-scope))])
        (when (memq hv fv)
          (reject
@@ -631,9 +637,11 @@
      (define pa (match assumes [(list (assume pa)) pa]))
      (define pz (match lastd [(derive p _) p]))
      (unless (prop-contradiction? pz)
-       (reject (err:incorrect-prop
-                "The block's final proposition" pz "q ∧ ¬q" null #f
-                `["That is, the block must end in a contradiction."] #f)))
+       (reject (err:wrong-prop
+                "The block's final proposition does not have the correct form."
+                "Required form" "q ∧ ¬q"
+                `["That is, the block must end in a contradiction."]
+                #f #f "Instead got" pz)))
      (unless (prop=? prop (prop:not pa))
        (badr "¬p" `((p ,pa)) 'arg #:expect (prop:not pa)))]
     [(j:Repeat (app getp p))
@@ -741,11 +749,6 @@
 (define (err:rule just)
   `(h "Incorrect use of " ,(rich 'rule (justification-rule-name just))))
 
-(define (err:got-arg p)
-  `(h "Instead got: " ,(rich 'prop p)))
-(define (err:got-result p)
-  `(h "Instead found: Derive " ,(rich 'prop p)))
-
 (define (err:prop-fv ref fvs)
   `(v "The proposition refers to one or more variables that are not in scope."
       ,@(if ref `((h "Proposition: " ,(rich 'ref ref))) '())
@@ -843,13 +846,16 @@
          "but it does not.")
       (h "Block: " ,(rich 'block-ref ref))))
 
-(define (err:incorrect-prop what got-p form mvenv mvwhy more expected [latemore null])
-  `(v (h ,what ,(if form " does not have the correct form." " is incorrect."))
-      ,@(if form `[(h "Required form: " ,(rich 'pattern form))] '())
-      ,@(err-part:mvenv mvenv mvwhy)
+(define (err:wrong-prop prefix
+                        whatform form more
+                        whatexpect expect
+                        whatgot got
+                        [latemore null])
+  `(v ,prefix
+      ,@(if form `[(h ,whatform ": " ,(rich 'pattern form))] '())
       ,@more
-      ,@(if expected `[(h "Expected: " ,(rich 'prop expected))] '())
-      (h "Instead found: " ,(rich 'prop got-p))
+      ,@(if expect `[(h ,whatexpect ": " ,(rich 'prop expect))] '())
+      (h ,whatgot ": " ,(rich 'prop got))
       ,@latemore))
 
 (define (err-part:mvenv mvenv mvwhy)
