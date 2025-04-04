@@ -40,8 +40,7 @@ function initialize() {
 /* If the proof text has changed, mark the output as outdated.
  */
 function prooftext_changed() {
-    $("#out_of_date").show();
-    $("#selecterr").attr("disabled", true);
+    clear_feedback(false, false);
 }
 
 function select_prooftext() {
@@ -62,10 +61,21 @@ function load_prooftext() {
             program = program + line + "\n";
         });
         $("#prooftext").prop("value", program);
-        $("#load_nothing").prop("selected", true);
-        $("#load").attr("disabled", true);
+        clear_feedback(true, true);
+    }
+}
+
+function clear_feedback(hideLastResult, upToDate) {
+    $("#load_nothing").prop("selected", true);
+    $("#load").attr("disabled", true);
+    $("#selecterr_area").hide();
+    if (hideLastResult) {
+        $("#output_outer_area").hide();
+    }
+    if (upToDate) {
         $("#out_of_date").hide();
-        $("#output_area").hide();
+    } else {
+        $("#out_of_date").show();
     }
 }
 
@@ -78,14 +88,15 @@ function select_last_error() {
 /* Submit the prooftext for checking, then update the output display.
  */
 function check_prooftext() {
-    $("#out_of_date").hide(); // FIXME: race condition
+    clear_feedback(true, true);
     $("#wait_for_server").show();
     ajax_json({
         url: config.check_url || "check",
         method: "POST",
         data: { proof: $("#prooftext").val() },
         success: function(resp) {
-            let area = $("#output_inner_area");
+            let area = $("#output_area");
+            let inner = $("#output_inner_area");
             if (resp.error) {
                 area.removeClass("check_good");
                 area.addClass("check_bad");
@@ -94,26 +105,30 @@ function check_prooftext() {
                 area.addClass("check_good");
             }
             if (resp.format == "html") {
-                area.html($(resp.errorh || resp.passh));
+                inner.html($(resp.errorh || resp.passh));
             } else if (resp.format == "text") {
                 let pre = $("<pre>");
                 pre.html(resp.error || resp.pass);
-                area.html(pre);
+                inner.html(pre);
             }
-            if (resp.start && resp.end) {
+            if (resp.end) {
                 last_err_start = resp.start;
                 last_err_end = resp.end;
-                $("#selecterr").attr("disabled", false);
+                $("#selecterr_area").show();
             } else {
-                $("#selecterr").attr("disabled", true);
+                last_err_start = null;
+                last_err_end = null;
+                $("#selecterr_area").hide();
             }
+            $("#output_outer_area").show();
             $("#wait_for_server").hide();
-            $("#output_area").show();
             $("#prooftext").focus();
         },
         error: function() {
+            $("#output_area").removeClass("check_good");
+            $("#output_area").addClass("check_bad");
             $("#output_inner_area").html("<p>The server raised an exception.</p>");
-            $("#output_area").show();
+            $("#output_outer_area").show();
             $("#wait_for_server").hide();
         }
     });

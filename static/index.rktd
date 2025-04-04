@@ -32,9 +32,8 @@
           "Make sure to save your work often to an external editor. " (br)
           "Reloading this page may clear the proof text.")
 
+       (h2 "Proof")
        (div ([id "proof_area"])
-            (h2 "Proof")
-
             (div () (label ([for "prooftext"]) "Proof"))
             (div ()
                  (textarea ([id "prooftext"]
@@ -45,23 +44,21 @@
                             [placeholder "Enter your proof here."])))
             (div ()
                  (button ([id "checkproof"] [type "button"])
-                         "Check proof")
-                 (button ([id "selecterr"] [type "button"] [disabled "disabled"])
-                         "Select error")))
+                         "Check proof")))
 
-       (div ([id "output_area"] [style "display: none"])
+       (div ([id "output_outer_area"] [style "display: none"])
             (h2 "Output")
-
             (div ([id "wait_for_server"] [class "waiting"] [style "display: none"])
                  (div ([class "par"]) "Waiting for the server to respond."))
-
             (div ([id "out_of_date"] [class "outdated"] [style "display: none"])
                  (div ([class "par"])
                       "The proof has changed since it was last checked, " (br)
                       "so this output may be out of date."))
-
-            (div ([id "output_inner_area"]))
-
+            (div ([id "output_area"])
+                 (div ([id "output_inner_area"]))
+                 (div ([id "selecterr_area"] [style "display: none"])
+                      (button ([id "selecterr"] [type "button"])
+                              "Select error location")))
             #|/div:output|#)
 
        (div ([id "docs_area"])

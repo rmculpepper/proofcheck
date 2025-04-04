@@ -66,10 +66,14 @@ p, .par {
     padding: 0pt 1em;
 }
 
-#output_inner_area {
+#output_area {
     border: solid 1pt gray;
     /* margin: 1em; */
     padding: 0.5em;
+}
+
+#selecterr_area {
+    padding: 2pt;
 }
 
 /* ---------------------------------------- */
