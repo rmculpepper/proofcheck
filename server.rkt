@@ -54,20 +54,20 @@
                          ((error-display-handler) (exn-message e) e)
                          (escape (hash 'v 1 'format "text" 'error (exn-message e))))])
         (define pf (string->proof proof-text))
-        (define cs (check-proof pf))
         (define msg
-          (cond [(proof-qed? pf)
-                 `(v "Proof complete."
-                     (h "Theorem: " ,(rich 'prop (derive-p (cstate-last cs)))))]
-                [(proof-goal pf)
-                 `(v (h "No errors were found, but the proof is incomplete.")
-                     (p "The proof is incomplete because there was a Theorem statement"
-                        "but the proof does not end with QED.")
-                     (v+ (h "Main goal: " ,(rich 'prop (proof-goal pf)))
-                         ,@(show-cstate cs)))]
-                [else
-                 `(v (h "No errors were found.")
-                     (v+ ,@(show-cstate cs)))]))
+          (match (check-proof-top pf)
+            [(list 'complete cs thm)
+             `(v "Proof complete."
+                 (h "Theorem: " ,(rich 'prop thm)))]
+            [(list 'incomplete cs thm)
+             `(v (h "No errors were found, but the proof is incomplete.")
+                 (p "The proof is incomplete because there was a Theorem statement"
+                    "but the proof does not end with QED.")
+                 (v+ (h "Main goal: " ,(rich 'prop thm))
+                     ,@(show-cstate cs)))]
+            [(list 'no-errors cs)
+             `(v (h "No errors were found.")
+                 (v+ ,@(show-cstate cs)))]))
         (define text (rich-text->string msg))
         (define html (xexpr->string ((rich-text->xexpr wrap-div) msg)))
         (hash 'v 1 'format "html" 'pass text 'passh html)))))

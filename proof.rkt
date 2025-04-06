@@ -18,7 +18,14 @@
          string->prop
          (struct-out proof)
          (struct-out cstate)
+         check-proof-top
          check-proof)
+
+(define (check-proof-top pf)
+  (define cs (check-proof pf))
+  (cond [(proof-qed? pf) (list 'complete cs (derive-p (cstate-last cs)))]
+        [(proof-goal pf) (list 'incomplete cs (proof-goal pf))]
+        [else (list 'no-errors cs)]))
 
 ;; ============================================================
 
