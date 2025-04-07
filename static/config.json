@@ -1,5 +1,4 @@
 {
-    "check_url": "http://localhost:17180/check",
     "fill": [
         {"name": "Conjunction example",
          "lines": [
